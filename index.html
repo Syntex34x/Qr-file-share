@@ -34,6 +34,15 @@
         .animated-zap {
             animation: pulse 3s infinite ease-in-out;
         }
+
+        /* Print-specific styles to hide non-content elements */
+        @media print {
+            body { background: none; }
+            header, footer, .print-hidden { display: none !important; }
+            main { margin: 0; padding: 0; }
+            /* Ensure files take up full width when printing */
+            .file-card { width: 100%; page-break-inside: avoid; margin-bottom: 20px; } 
+        }
     </style>
     
     <!-- Load React and ReactDOM for running the component -->
@@ -45,7 +54,7 @@
     <div id="root"></div>
 
     <script type="text/babel">
-        const { useState, useEffect } = React;
+        const { useState, useEffect, useMemo } = React;
         
         // --- Icon Definitions (Simulating Lucide-React Imports) ---
         const Upload = (props) => <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>;
@@ -57,6 +66,8 @@
         const Home = (props) => <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>;
         const Heart = (props) => <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/></svg>;
         const Github = (props) => <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M15 22v-4a4.8 4.8 0 0 0-1-3.5c3 0 6-2 6-5.5.08-1.25-.27-2.48-1-3.5.28-1.15.28-2.35 0-3.5 0 0-1 0-3 1.5-2.64-.5-5.36-.5-8 0C6 2 5 2 5 2c-.3 1.15-.3 2.35 0 3.5A5.403 5.403 0 0 0 4 9c0 3.5 3 5.5 6 5.5-.39.49-.68 1.05-.85 1.65-.17.6-.22 1.23-.15 1.85v4"/><path d="M9 18c-4.51 2-5-2-7-2"/></svg>;
+        const Search = (props) => <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>;
+
 
         // Utility function for readable file sizes
         const formatFileSize = (bytes) => {
@@ -72,8 +83,8 @@
             return <FileText className="w-6 h-6" />; // Default to general file icon
         };
         
-        // --- NEW INTRO VIEW (Home Page) ---
-        const IntroView = ({ startSession }) => (
+        // --- INTRO VIEW (Home Page) ---
+        const IntroView = ({ startNewSession, searchSessionId, setSearchSessionId, joinSession }) => (
             <div className="relative flex flex-col items-center justify-center min-h-[calc(100vh-140px)] p-8">
                 {/* Animated Background Gradient */}
                 <div className="absolute inset-0 bg-gradient-to-br from-indigo-50 to-blue-100 opacity-90 -z-10"></div>
@@ -86,12 +97,38 @@
                     <p className="text-xl text-gray-600 mb-10 max-w-lg mx-auto">
                         Transfer files from mobile to desktop instantly. Simply scan the code to upload and print.
                     </p>
+                    
+                    {/* Primary Action: Start New Session */}
                     <button
-                        onClick={startSession}
-                        className="inline-flex items-center justify-center px-8 py-4 border border-transparent text-lg font-bold rounded-full text-white bg-indigo-600 hover:bg-indigo-700 shadow-xl transition transform hover:scale-[1.02] active:scale-100 duration-200 gap-3"
+                        onClick={startNewSession}
+                        className="w-full sm:w-auto inline-flex items-center justify-center px-8 py-4 border border-transparent text-lg font-bold rounded-full text-white bg-indigo-600 hover:bg-indigo-700 shadow-xl transition transform hover:scale-[1.02] active:scale-100 duration-200 gap-3 mb-8"
                     >
                         <Upload className="w-6 h-6"/> Start New Quick Scan Session
                     </button>
+
+                    {/* Secondary Action: Join Session by ID */}
+                    <div className="max-w-md mx-auto p-5 bg-gray-50 rounded-xl border border-gray-200 shadow-inner">
+                        <h2 className="text-xl font-bold text-gray-800 mb-4 flex items-center justify-center gap-2">
+                            <Search className="w-5 h-5 text-gray-600"/> Join Existing Session
+                        </h2>
+                        <div className="flex flex-col sm:flex-row gap-3">
+                            <input
+                                type="text"
+                                placeholder="Enter 9-digit Session ID (e.g., 5f7a2d1c4)"
+                                value={searchSessionId}
+                                onChange={(e) => setSearchSessionId(e.target.value.trim().toLowerCase())}
+                                className="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500 text-gray-700"
+                                onKeyDown={(e) => e.key === 'Enter' && joinSession()}
+                            />
+                            <button
+                                onClick={joinSession}
+                                disabled={searchSessionId.length < 5}
+                                className="flex items-center justify-center gap-2 px-6 py-3 text-sm font-semibold rounded-lg text-white bg-green-600 disabled:bg-green-400 hover:bg-green-700 transition"
+                            >
+                                Join
+                            </button>
+                        </div>
+                    </div>
                     
                     {/* Simplified Feature List */}
                     <div className="mt-12 grid grid-cols-1 md:grid-cols-3 gap-6 text-left">
@@ -186,7 +223,7 @@
                     <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                         
                         {/* QR Code Column */}
-                        <div className="lg:col-span-1 p-6 bg-white rounded-2xl shadow-2xl border-t-4 border-indigo-600 h-fit">
+                        <div className="lg:col-span-1 p-6 bg-white rounded-2xl shadow-2xl border-t-4 border-indigo-600 h-fit print-hidden">
                             <h2 className="text-xl font-bold text-gray-800 mb-4 flex items-center gap-2">
                                 <Zap className="w-5 h-5 text-indigo-600"/> Quick Scan
                             </h2>
@@ -211,12 +248,12 @@
                         <div className="lg:col-span-2">
                             <div className="flex items-center justify-between mb-6">
                                 <h2 className="text-3xl font-bold text-gray-800">
-                                    Received Files ({files.length})
+                                    Session: <code className="text-indigo-600 bg-indigo-100 px-2 py-1 rounded font-mono text-2xl">{sessionId}</code>
                                 </h2>
                                 {files.length > 0 && (
                                     <button
                                         onClick={printAll}
-                                        className="bg-green-600 text-white px-6 py-3 rounded-xl font-semibold hover:bg-green-700 transition flex items-center gap-2 shadow-lg hover:shadow-xl"
+                                        className="bg-green-600 text-white px-6 py-3 rounded-xl font-semibold hover:bg-green-700 transition flex items-center gap-2 shadow-lg hover:shadow-xl print-hidden"
                                     >
                                         <Printer className="w-5 h-5" />
                                         Print All Files
@@ -227,12 +264,12 @@
                                 <div className="text-center py-20 bg-white rounded-2xl shadow-inner border border-gray-100">
                                     <Upload className="w-20 h-20 mx-auto text-gray-300 mb-4" />
                                     <p className="text-xl text-gray-400 font-semibold">Awaiting File Uploads</p>
-                                    <p className="text-gray-400 mt-2">Scan the QR code on the left to begin your transfer.</p>
+                                    <p className="text-gray-400 mt-2">Scan the QR code or share the session ID.</p>
                                 </div>
                             ) : (
                                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                                     {files.map(file => (
-                                        <div key={file.id} className="bg-white rounded-xl shadow-lg border border-gray-100 overflow-hidden transition hover:shadow-xl">
+                                        <div key={file.id} className="file-card bg-white rounded-xl shadow-lg border border-gray-100 overflow-hidden transition hover:shadow-xl">
                                             {/* File Card Header/Preview */}
                                             {file.type.includes('image') ? (
                                                 <img src={file.url} alt={file.name} className="w-full h-32 object-cover bg-gray-100" />
@@ -246,7 +283,7 @@
                                                 <h3 className="font-semibold text-gray-800 truncate mb-1">{file.name}</h3>
                                                 <p className="text-xs text-gray-500 mb-3">{formatFileSize(file.size)} • Uploaded: {file.timestamp}</p>
                                                                         
-                                                <div className="flex gap-2">
+                                                <div className="flex gap-2 print-hidden">
                                                     <button
                                                         onClick={() => printFile(file.url)}
                                                         className="flex-1 bg-indigo-600 text-white px-3 py-2 rounded-lg text-sm font-semibold hover:bg-indigo-700 transition flex items-center justify-center gap-2 shadow-md"
@@ -274,7 +311,7 @@
 
         // --- FOOTER COMPONENT ---
         const Footer = () => (
-            <footer className="bg-white border-t border-gray-200 mt-auto">
+            <footer className="bg-white border-t border-gray-200 mt-auto print-hidden">
                 <div className="max-w-7xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
                     <div className="flex flex-col md:flex-row justify-between items-center gap-4">
                         <div className="flex items-center gap-2">
@@ -291,7 +328,7 @@
                         <div className="flex gap-6 text-sm font-medium text-gray-600">
                             <a href="#" className="hover:text-indigo-600 transition duration-200">Privacy Policy</a>
                             <a href="#" className="hover:text-indigo-600 transition duration-200">Terms of Service</a>
-                            <a href="#" className="hover:text-indigo-600 transition duration-200 flex items-center gap-1">
+                            <a href="https://github.com/google/gemini-canvas" target="_blank" rel="noopener noreferrer" className="hover:text-indigo-600 transition duration-200 flex items-center gap-1">
                                 <Github className="w-4 h-4"/> GitHub
                             </a>
                         </div>
@@ -310,20 +347,42 @@
           // 'intro' is the new default home page, 'session' is the quick scan/file view
           const [activeTab, setActiveTab] = useState('intro');
           
-          // State to hold the locally selected files
-          const [files, setFiles] = useState([]);
+          // The currently active session ID. Default to a new random one.
+          const [sessionId, setSessionId] = useState(() => Math.random().toString(36).substr(2, 9));
           
-          // Unique session ID for QR code generation
-          const [sessionId] = useState(() => Math.random().toString(36).substr(2, 9));
+          // State for the session ID input field on the home screen
+          const [searchSessionId, setSearchSessionId] = useState('');
+
+          // State to hold the locally selected files (In a real app, this would be fetched from Firestore/DB based on sessionId)
+          const [files, setFiles] = useState([]);
           
           // State to determine if the user is viewing the app on a desktop or mobile upload screen
           const [view, setView] = useState('desktop');
           
           // Base URL encoded with the session ID for the QR code
-          const uploadUrl = `${window.location.href.split('?')[0]}?session=${sessionId}`;
+          const uploadUrl = useMemo(() => {
+              // Get the base URL (without query params) and append the current session ID
+              return `${window.location.href.split('?')[0]}?session=${sessionId}`;
+          }, [sessionId]);
+
 
           // Function to start a session and switch to the Quick Scan view
-          const startSession = () => setActiveTab('session');
+          const startNewSession = () => {
+              // Generate a brand new session ID
+              const newId = Math.random().toString(36).substr(2, 9);
+              setSessionId(newId);
+              setFiles([]); // Clear old files when starting a new session
+              setActiveTab('session');
+          };
+
+          const joinSession = () => {
+              if (searchSessionId.length >= 5) {
+                  // Set the new session ID context
+                  setSessionId(searchSessionId);
+                  setFiles([]); // In this local storage version, we clear files when joining a new session ID
+                  setActiveTab('session');
+              }
+          };
 
           // Check if the current view should be mobile based on user agent and URL params
           useEffect(() => {
@@ -332,7 +391,11 @@
             const hasSessionParam = urlParams.get('session');
 
             if (isMobile && hasSessionParam) {
+              // If it's a mobile device and the URL contains a session parameter, switch to mobile view
               setView('mobile');
+              // Also set the active session ID to the one from the URL (for mobile uploader context)
+              setSessionId(hasSessionParam);
+              setActiveTab('session');
             }
           }, []);
 
@@ -350,6 +413,8 @@
             }));
             
             setFiles(prev => [...prev, ...newFiles]);
+            // In a real app, this is where you would upload the file to storage (e.g., Firebase)
+            // and write a document to the Firestore collection associated with the current sessionId.
           };
 
           const deleteFile = (id) => {
@@ -359,6 +424,7 @@
                 }
             });
             setFiles(prev => prev.filter(f => f.id !== id));
+            // In a real app, this is where you would delete the file from storage and the Firestore document.
           };
 
           const printFile = (fileUrl) => {
@@ -400,7 +466,7 @@
           return (
             <div className="min-h-screen bg-gray-50 flex flex-col">
               {/* Header/Navigation */}
-              <header className="bg-white shadow-lg sticky top-0 z-10">
+              <header className="bg-white shadow-lg sticky top-0 z-10 print-hidden">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                   <div className="flex justify-between items-center h-16">
                     <div className="flex items-center">
@@ -436,7 +502,12 @@
               {/* Main Content Area */}
               <main className="max-w-7xl mx-auto w-full flex-grow">
                   {activeTab === 'intro' ? (
-                      <IntroView startSession={startSession} />
+                      <IntroView 
+                          startNewSession={startNewSession} 
+                          searchSessionId={searchSessionId}
+                          setSearchSessionId={setSearchSessionId}
+                          joinSession={joinSession}
+                      />
                   ) : (
                       <FileSessionView 
                           files={files} 
