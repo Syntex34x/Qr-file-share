@@ -3,28 +3,15 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>AeroDrop | Instant File Share</title>
+    <title>AeroDrop | Fast File Share</title>
     
-    <!-- Fonts & Tailwind -->
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
         tailwind.config = {
             theme: {
                 extend: {
-                    fontFamily: {
-                        sans: ['"Plus Jakarta Sans"', 'sans-serif'],
-                    },
-                    colors: {
-                        brand: {
-                            50: '#f0f9ff',
-                            100: '#e0f2fe',
-                            400: '#38bdf8',
-                            500: '#0ea5e9',
-                            600: '#0284c7',
-                            900: '#0c4a6e',
-                        }
-                    },
+                    fontFamily: { sans: ['"Plus Jakarta Sans"', 'sans-serif'] },
                     animation: {
                         'blob': 'blob 7s infinite',
                         'float': 'float 3s ease-in-out infinite',
@@ -46,7 +33,6 @@
         }
     </script>
 
-    <!-- Import Map for Modules -->
     <script type="importmap">
     {
         "imports": {
@@ -55,56 +41,21 @@
             "firebase/app": "https://www.gstatic.com/firebasejs/11.0.2/firebase-app.js",
             "firebase/auth": "https://www.gstatic.com/firebasejs/11.0.2/firebase-auth.js",
             "firebase/firestore": "https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js",
-            "firebase/storage": "https://www.gstatic.com/firebasejs/11.0.2/firebase-storage.js",
-            "firebase/analytics": "https://www.gstatic.com/firebasejs/11.0.2/firebase-analytics.js"
+            "firebase/storage": "https://www.gstatic.com/firebasejs/11.0.2/firebase-storage.js"
         }
     }
     </script>
 
-    <!-- React & Babel -->
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-    
-    <!-- QRCode Generator -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 
     <style>
-        /* Glassmorphism Utilities */
-        .glass {
-            background: rgba(255, 255, 255, 0.7);
-            backdrop-filter: blur(12px);
-            -webkit-backdrop-filter: blur(12px);
-            border: 1px solid rgba(255, 255, 255, 0.5);
-        }
-        .glass-dark {
-            background: rgba(15, 23, 42, 0.6);
-            backdrop-filter: blur(12px);
-            -webkit-backdrop-filter: blur(12px);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-        }
-        
-        /* Custom Scrollbar */
+        .glass { background: rgba(255, 255, 255, 0.7); backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.5); }
         ::-webkit-scrollbar { width: 6px; }
-        ::-webkit-scrollbar-track { background: transparent; }
         ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
-        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
-
-        body {
-            background-color: #f8fafc;
-            overflow-x: hidden;
-        }
-
-        /* Print styles */
-        @media print {
-            .no-print { display: none !important; }
-            body { background: white; }
-            .print-container { padding: 0; }
-            .file-card { break-inside: avoid; border: 1px solid #ccc; box-shadow: none; margin-bottom: 20px; }
-        }
-
-        @keyframes slideIn {
-            from { opacity: 0; transform: translateY(20px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
+        body { background-color: #f8fafc; overflow-x: hidden; }
+        @media print { .no-print { display: none !important; } }
+        @keyframes slideIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
     </style>
 </head>
 <body>
@@ -113,48 +64,33 @@
     <script type="text/babel" data-type="module">
         import React, { useState, useEffect, useMemo, useRef } from 'react';
         import { createRoot } from 'react-dom/client';
-        
-        // --- Firebase Imports ---
         import { initializeApp } from "firebase/app";
         import { getAuth, signInAnonymously, onAuthStateChanged } from "firebase/auth";
         import { getFirestore, collection, addDoc, onSnapshot, query, where, deleteDoc, doc, serverTimestamp } from "firebase/firestore";
         import { getStorage, ref, uploadBytes, getDownloadURL, deleteObject } from "firebase/storage";
 
-        // --- Firebase Configuration ---
         const firebaseConfig = {
             apiKey: "AIzaSyB23Xlx9wLi9ERHzw9sBYX2N6-XxckZiSc",
             authDomain: "qr-share-a3c86.firebaseapp.com",
             projectId: "qr-share-a3c86",
             storageBucket: "qr-share-a3c86.firebasestorage.app",
             messagingSenderId: "445728893026",
-            appId: "1:445728893026:web:833ea25e39c537ea88893b",
-            measurementId: "G-H98T02B3S8"
+            appId: "1:445728893026:web:833ea25e39c537ea88893b"
         };
 
-        // --- Initialize Firebase Services ---
-        let app, auth, db, storage;
-        let firebaseInitialized = false;
-
+        let app, auth, db, storage, firebaseInitialized = false;
         try {
             app = initializeApp(firebaseConfig);
             auth = getAuth(app);
             db = getFirestore(app);
             storage = getStorage(app);
             firebaseInitialized = true;
-        } catch (error) {
-            console.error("Firebase initialization failed:", error);
-        }
+        } catch (error) { console.error("Firebase init failed:", error); }
 
-        // App ID for Firestore paths
         const appId = 'qr-share-default';
 
-        // --- Icons (SVG Components) ---
-        const Icon = ({ path, className }) => (
-            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
-                {path}
-            </svg>
-        );
-
+        // --- Icons ---
+        const Icon = ({ path, className }) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>{path}</svg>;
         const Icons = {
             Zap: (p) => <Icon {...p} path={<polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />} />,
             Upload: (p) => <Icon {...p} path={<><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></>} />,
@@ -170,100 +106,77 @@
             AlertCircle: (p) => <Icon {...p} path={<><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></>} />,
         };
 
-        // --- Utils ---
         const formatSize = (bytes) => {
             if (bytes === 0) return '0 B';
-            const k = 1024;
-            const sizes = ['B', 'KB', 'MB', 'GB'];
+            const k = 1024; const sizes = ['B', 'KB', 'MB', 'GB'];
             const i = Math.floor(Math.log(bytes) / Math.log(k));
             return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
         };
 
-        // Image compression helper
+        // --- OPTIMIZED IMAGE COMPRESSION ---
         const compressImage = (file) => {
             return new Promise((resolve) => {
+                // SKIP COMPRESSION for files under 3MB to speed up instant sharing
+                if (file.size < 3 * 1024 * 1024) {
+                    resolve(file);
+                    return;
+                }
+
                 const reader = new FileReader();
+                reader.readAsDataURL(file);
                 reader.onload = (e) => {
                     const img = new Image();
+                    img.src = e.target.result;
                     img.onload = () => {
                         const canvas = document.createElement('canvas');
                         let width = img.width;
                         let height = img.height;
-                        
-                        // Resize if too large
-                        const maxDim = 1920;
+                        const maxDim = 1600; // Moderate resize
                         if (width > maxDim || height > maxDim) {
-                            if (width > height) {
-                                height = (height / width) * maxDim;
-                                width = maxDim;
-                            } else {
-                                width = (width / height) * maxDim;
-                                height = maxDim;
-                            }
+                            if (width > height) { height = (height / width) * maxDim; width = maxDim; }
+                            else { width = (width / height) * maxDim; height = maxDim; }
                         }
-                        
                         canvas.width = width;
                         canvas.height = height;
                         const ctx = canvas.getContext('2d');
                         ctx.drawImage(img, 0, 0, width, height);
                         
+                        // 0.7 quality is fast and good enough for sharing
                         canvas.toBlob((blob) => {
                             resolve(new File([blob], file.name, { type: 'image/jpeg' }));
-                        }, 'image/jpeg', 0.85);
+                        }, 'image/jpeg', 0.7);
                     };
-                    img.src = e.target.result;
                 };
-                reader.readAsDataURL(file);
             });
         };
-
-        // --- Components ---
 
         const Background = () => (
             <div className="fixed inset-0 -z-10 overflow-hidden bg-slate-50">
                 <div className="absolute top-0 left-1/4 w-96 h-96 bg-blue-300 rounded-full mix-blend-multiply filter blur-3xl opacity-30 animate-blob"></div>
                 <div className="absolute top-0 right-1/4 w-96 h-96 bg-purple-300 rounded-full mix-blend-multiply filter blur-3xl opacity-30 animate-blob animation-delay-2000"></div>
-                <div className="absolute -bottom-32 left-1/3 w-96 h-96 bg-pink-300 rounded-full mix-blend-multiply filter blur-3xl opacity-30 animate-blob animation-delay-4000"></div>
             </div>
         );
 
         const Button = ({ children, variant = 'primary', className, disabled, ...props }) => {
-            const baseStyle = "px-6 py-3 rounded-xl font-semibold transition-all duration-200 flex items-center justify-center gap-2 transform active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed";
+            const base = "px-6 py-3 rounded-xl font-semibold transition-all duration-200 flex items-center justify-center gap-2 active:scale-95 disabled:opacity-50";
             const variants = {
-                primary: "bg-slate-900 text-white hover:bg-slate-800 shadow-lg shadow-slate-900/20",
-                secondary: "bg-white text-slate-700 hover:bg-slate-50 border border-slate-200 shadow-sm",
-                danger: "bg-red-50 text-red-600 hover:bg-red-100",
-                ghost: "text-slate-500 hover:text-slate-800 hover:bg-slate-100/50"
+                primary: "bg-slate-900 text-white hover:bg-slate-800 shadow-lg",
+                secondary: "bg-white text-slate-700 hover:bg-slate-50 border border-slate-200",
             };
-            return (
-                <button className={`${baseStyle} ${variants[variant]} ${className}`} disabled={disabled} {...props}>
-                    {children}
-                </button>
-            );
+            return <button className={`${base} ${variants[variant] || variants.primary} ${className}`} disabled={disabled} {...props}>{children}</button>;
         };
 
-        // --- QR Code Component ---
         const QRCode = ({ text }) => {
             const qrRef = useRef(null);
-            
             useEffect(() => {
                 if (qrRef.current && window.QRCode) {
                     qrRef.current.innerHTML = '';
-                    new window.QRCode(qrRef.current, {
-                        text: text,
-                        width: 200,
-                        height: 200,
-                        colorDark: "#0f172a",
-                        colorLight: "#ffffff",
-                        correctLevel: window.QRCode.CorrectLevel.H
-                    });
+                    new window.QRCode(qrRef.current, { text, width: 200, height: 200, colorDark: "#0f172a", correctLevel: window.QRCode.CorrectLevel.H });
                 }
             }, [text]);
-
             return <div ref={qrRef} className="p-4 bg-white rounded-2xl shadow-sm border border-slate-100 inline-block" />;
         };
 
-        // --- Main App Component ---
         const App = () => {
             const [view, setView] = useState('landing');
             const [sessionId, setSessionId] = useState('');
@@ -276,207 +189,119 @@
             const [authError, setAuthError] = useState(null);
             const [connectionStatus, setConnectionStatus] = useState('connecting');
 
-            // 1. Initialize Auth with improved error handling
             useEffect(() => {
                 if (!firebaseInitialized) {
-                    setAuthError("Firebase failed to initialize. Please refresh the page.");
-                    setConnectionStatus('error');
-                    return;
+                    setAuthError("Firebase failed."); setConnectionStatus('error'); return;
                 }
-
-                let retryCount = 0;
-                const maxRetries = 3;
-
                 const attemptAuth = async () => {
                     try {
                         setConnectionStatus('connecting');
                         await signInAnonymously(auth);
                         setConnectionStatus('connected');
-                        setAuthError(null);
                     } catch (err) {
-                        console.error("Authentication error:", err);
-                        
-                        let errorMessage = "Connection failed. ";
-                        
-                        if (err.code === 'auth/operation-not-allowed') {
-                            errorMessage = "Anonymous authentication is disabled. Please enable it in Firebase Console (Authentication > Sign-in method).";
-                            setConnectionStatus('error');
-                        } else if (err.code === 'auth/network-request-failed') {
-                            errorMessage = "Network error. Please check your internet connection.";
-                            if (retryCount < maxRetries) {
-                                retryCount++;
-                                errorMessage += ` Retrying (${retryCount}/${maxRetries})...`;
-                                setAuthError(errorMessage);
-                                setTimeout(() => attemptAuth(), 2000);
-                                return;
-                            } else {
-                                setConnectionStatus('error');
-                            }
-                        } else if (err.code === 'auth/too-many-requests') {
-                            errorMessage = "Too many connection attempts. Please wait a moment and refresh.";
-                            setConnectionStatus('error');
-                        } else {
-                            errorMessage = `Connection error: ${err.message}`;
-                            setConnectionStatus('error');
-                        }
-                        
-                        setAuthError(errorMessage);
+                        setAuthError("Connection failed. Check network.");
+                        setConnectionStatus('error');
                     }
                 };
-
                 attemptAuth();
-
-                const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
-                    setUser(currentUser);
-                    if (currentUser) {
-                        setAuthError(null);
-                        setConnectionStatus('connected');
-                    }
+                return onAuthStateChanged(auth, (u) => {
+                    setUser(u);
+                    if (u) { setAuthError(null); setConnectionStatus('connected'); }
                 });
-
-                return () => unsubscribe();
             }, []);
 
-            // 2. Handle URL Params & Device Detection
             useEffect(() => {
                 const params = new URLSearchParams(window.location.search);
-                const sessionParam = params.get('session');
+                const s = params.get('session');
                 const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-
-                if (sessionParam) {
-                    setSessionId(sessionParam);
-                    if (isMobile) {
-                        setView('mobile-upload');
-                    } else {
-                        setView('session');
-                    }
+                if (s) {
+                    setSessionId(s);
+                    setView(isMobile ? 'mobile-upload' : 'session');
                 }
             }, []);
 
-            // 3. Real-time Firestore Sync
             useEffect(() => {
-                if (!sessionId || !user || !firebaseInitialized) return;
-
-                try {
-                    const q = query(
-                        collection(db, 'artifacts', appId, 'public', 'data', 'files'),
-                        where('sessionId', '==', sessionId)
-                    );
-
-                    const unsubscribe = onSnapshot(q, (snapshot) => {
-                        const fetchedFiles = snapshot.docs.map(doc => ({
-                            id: doc.id,
-                            ...doc.data()
-                        }));
-                        fetchedFiles.sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
-                        setFiles(fetchedFiles);
-                    }, (error) => {
-                        console.error("Error fetching files:", error);
-                        setAuthError("Failed to sync files. Check Firestore permissions.");
-                    });
-
-                    return () => unsubscribe();
-                } catch (error) {
-                    console.error("Firestore setup error:", error);
-                }
+                if (!sessionId || !user) return;
+                const q = query(collection(db, 'artifacts', appId, 'public', 'data', 'files'), where('sessionId', '==', sessionId));
+                return onSnapshot(q, (snap) => {
+                    const f = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+                    f.sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
+                    setFiles(f);
+                });
             }, [sessionId, user]);
 
-            const uploadUrl = useMemo(() => {
-                const base = window.location.href.split('?')[0];
-                return `${base}?session=${sessionId}`;
-            }, [sessionId]);
+            const uploadUrl = useMemo(() => `${window.location.href.split('?')[0]}?session=${sessionId}`, [sessionId]);
 
             const startSession = () => {
-                if (connectionStatus !== 'connected') {
-                    setAuthError("Please wait for connection to establish.");
-                    return;
-                }
-                const newId = Math.random().toString(36).substring(2, 8).toUpperCase();
-                setSessionId(newId);
+                if (connectionStatus !== 'connected') return;
+                setSessionId(Math.random().toString(36).substring(2, 8).toUpperCase());
                 setFiles([]);
                 setView('session');
             };
 
             const joinSession = (e) => {
                 e.preventDefault();
-                if (connectionStatus !== 'connected') {
-                    setAuthError("Please wait for connection to establish.");
-                    return;
-                }
                 if (searchId.length > 3) {
                     setSessionId(searchId.toUpperCase());
-                    const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-                    setView(isMobile ? 'mobile-upload' : 'session');
+                    setView(/iPhone|iPad|iPod|Android/i.test(navigator.userAgent) ? 'mobile-upload' : 'session');
                 }
             };
 
-            const handleCopyLink = () => {
-                navigator.clipboard.writeText(uploadUrl);
-                setCopied(true);
-                setTimeout(() => setCopied(false), 2000);
-            };
-
+            // --- OPTIMIZED UPLOAD HANDLER ---
             const handleUpload = async (e) => {
-                if (!user || !sessionId || !firebaseInitialized) return;
+                if (!user || !sessionId) return;
                 
                 const filesToUpload = Array.from(e.target.files);
                 if (filesToUpload.length === 0) return;
 
-                // Check file size limit (10MB per file)
-                const MAX_SIZE = 10 * 1024 * 1024;
-                const oversizedFiles = filesToUpload.filter(f => f.size > MAX_SIZE);
-                if (oversizedFiles.length > 0) {
-                    alert(`Files too large (max 10MB): ${oversizedFiles.map(f => f.name).join(', ')}`);
+                const MAX_SIZE = 15 * 1024 * 1024;
+                if (filesToUpload.some(f => f.size > MAX_SIZE)) {
+                    alert("One or more files exceed 15MB limit.");
                     e.target.value = null;
                     return;
                 }
 
                 setUploading(true);
+                let completed = 0;
                 setUploadProgress({ current: 0, total: filesToUpload.length });
 
                 try {
-                    // Optimize: Upload files in parallel batches of 3
-                    const batchSize = 3;
-                    let completed = 0;
-                    
-                    for (let i = 0; i < filesToUpload.length; i += batchSize) {
-                        const batch = filesToUpload.slice(i, i + batchSize);
-                        
-                        await Promise.all(batch.map(async (file) => {
-                            try {
-                                // Compress images before upload
-                                let fileToUpload = file;
-                                if (file.type.startsWith('image/') && file.size > 500000) {
-                                    fileToUpload = await compressImage(file);
-                                }
-
-                                const timestamp = Date.now();
-                                const storageRef = ref(storage, `uploads/${sessionId}/${timestamp}_${file.name}`);
-                                
-                                const snapshot = await uploadBytes(storageRef, fileToUpload);
-                                const downloadURL = await getDownloadURL(snapshot.ref);
-
-                                await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'files'), {
-                                    sessionId: sessionId,
-                                    name: file.name,
-                                    size: file.size,
-                                    type: file.type,
-                                    url: downloadURL,
-                                    storagePath: snapshot.ref.fullPath,
-                                    createdAt: serverTimestamp()
-                                });
-                                
-                                completed++;
-                                setUploadProgress({ current: completed, total: filesToUpload.length });
-                            } catch (err) {
-                                console.error(`Failed to upload ${file.name}:`, err);
-                                throw err;
+                    // PARALLEL UPLOAD: Fire all requests at once instead of batches
+                    const promises = filesToUpload.map(async (file) => {
+                        try {
+                            let fileToUpload = file;
+                            // Only compress if actually needed
+                            if (file.type.startsWith('image/')) {
+                                fileToUpload = await compressImage(file);
                             }
-                        }));
-                    }
+
+                            const timestamp = Date.now();
+                            const rId = Math.random().toString(36).substring(2, 6);
+                            const storageRef = ref(storage, `uploads/${sessionId}/${timestamp}_${rId}_${file.name}`);
+                            
+                            const snapshot = await uploadBytes(storageRef, fileToUpload);
+                            const downloadURL = await getDownloadURL(snapshot.ref);
+
+                            await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'files'), {
+                                sessionId: sessionId,
+                                name: file.name,
+                                size: fileToUpload.size,
+                                type: file.type,
+                                url: downloadURL,
+                                storagePath: snapshot.ref.fullPath,
+                                createdAt: serverTimestamp()
+                            });
+                            
+                            completed++;
+                            setUploadProgress({ current: completed, total: filesToUpload.length });
+                        } catch (err) {
+                            console.error("Upload failed", err);
+                        }
+                    });
+
+                    await Promise.all(promises);
                 } catch (error) {
-                    console.error("Upload failed:", error);
-                    alert(`Upload failed: ${error.message}`);
+                    console.error("Upload error:", error);
                 } finally {
                     setUploading(false);
                     setUploadProgress({ current: 0, total: 0 });
@@ -485,334 +310,108 @@
             };
 
             const removeFile = async (file) => {
-                if (!user || !firebaseInitialized) return;
-                try {
-                    await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'files', file.id));
-                    
-                    if (file.storagePath) {
-                        const fileRef = ref(storage, file.storagePath);
-                        await deleteObject(fileRef).catch(err => console.log("Storage delete skipped:", err));
-                    }
-                } catch (error) {
-                    console.error("Error removing file:", error);
-                }
+                await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'files', file.id));
+                if (file.storagePath) deleteObject(ref(storage, file.storagePath)).catch(console.log);
             };
 
             const printFile = (url) => {
                 const w = window.open(url);
-                if(w) {
-                    w.onload = () => w.print();
-                }
+                if (w) w.onload = () => w.print();
             };
 
-            // --- Views ---
-
-            const ConnectionBanner = () => {
-                if (connectionStatus === 'connected') return null;
-                
-                return (
-                    <div className={`fixed top-4 left-1/2 transform -translate-x-1/2 z-50 px-6 py-3 rounded-xl shadow-lg flex items-center gap-3 ${
-                        connectionStatus === 'error' ? 'bg-red-50 border border-red-200' : 'bg-amber-50 border border-amber-200'
-                    }`}>
-                        {connectionStatus === 'error' ? (
-                            <Icons.AlertCircle className="w-5 h-5 text-red-500" />
-                        ) : (
-                            <Icons.Loading className="w-5 h-5 text-amber-500" />
-                        )}
-                        <span className={`text-sm font-medium ${connectionStatus === 'error' ? 'text-red-700' : 'text-amber-700'}`}>
-                            {connectionStatus === 'error' ? 'Connection Error' : 'Connecting to server...'}
-                        </span>
-                        {connectionStatus === 'error' && authError && (
-                            <button onClick={() => window.location.reload()} className="ml-2 px-3 py-1 bg-red-100 hover:bg-red-200 rounded-lg text-xs font-semibold text-red-700 transition-colors">
-                                Retry
-                            </button>
-                        )}
-                    </div>
-                );
-            };
-
-            const LandingView = () => (
+            // --- VIEWS ---
+            if (view === 'landing') return (
                 <div className="min-h-screen flex flex-col items-center justify-center p-6 text-center">
-                    <div className="max-w-3xl w-full animate-float">
-                        <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-blue-50 text-blue-600 text-sm font-semibold mb-8 border border-blue-100">
-                            <Icons.Zap className="w-4 h-4" /> v2.0 • Optimized
-                        </div>
-                        <h1 className="text-5xl md:text-7xl font-bold text-slate-900 tracking-tight mb-6">
-                            Transfer files <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-purple-600">instantly.</span>
-                        </h1>
-                        <p className="text-xl text-slate-500 mb-12 max-w-2xl mx-auto leading-relaxed">
-                            No login required. Secure, real-time file sharing and printing designed for seamless workflows.
-                        </p>
-                        
-                        {authError && (
-                            <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-xl text-red-700 text-sm max-w-md mx-auto">
-                                <div className="flex items-start gap-2">
-                                    <Icons.AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5" />
-                                    <div className="flex-1 text-left">
-                                        <p className="font-semibold mb-1">Connection Issue</p>
-                                        <p>{authError}</p>
-                                    </div>
-                                </div>
-                            </div>
-                        )}
-                        
-                        <div className="flex flex-col sm:flex-row items-center justify-center gap-4 w-full">
-                            <Button 
-                                onClick={startSession} 
-                                className="w-full sm:w-auto h-14 text-lg px-8"
-                                disabled={connectionStatus !== 'connected'}
-                            >
-                                {connectionStatus === 'connecting' ? (
-                                    <>
-                                        <Icons.Loading className="w-5 h-5" /> Connecting...
-                                    </>
-                                ) : (
-                                    <>
-                                        Start Quick Session <Icons.ArrowRight className="w-5 h-5" />
-                                    </>
-                                )}
+                    <Background />
+                    <div className="max-w-2xl animate-float">
+                        <h1 className="text-5xl md:text-7xl font-bold text-slate-900 mb-6">AeroDrop <span className="text-blue-600">Fast.</span></h1>
+                        <p className="text-xl text-slate-500 mb-8">Instant peer-to-peer file sharing & printing.</p>
+                        <div className="flex flex-col sm:flex-row justify-center gap-4">
+                            <Button onClick={startSession} disabled={connectionStatus !== 'connected'}>
+                                {connectionStatus === 'connecting' ? 'Connecting...' : 'Start Session'} <Icons.ArrowRight className="w-5 h-5" />
                             </Button>
-                            
-                            <form onSubmit={joinSession} className="relative w-full sm:w-auto">
-                                <input 
-                                    type="text" 
-                                    placeholder="Enter Session ID" 
-                                    className="w-full h-14 pl-5 pr-12 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all shadow-sm disabled:opacity-50"
-                                    value={searchId}
-                                    onChange={e => setSearchId(e.target.value)}
-                                    disabled={connectionStatus !== 'connected'}
-                                />
-                                <button 
-                                    type="submit" 
-                                    disabled={connectionStatus !== 'connected'}
-                                    className="absolute right-2 top-2 bottom-2 aspect-square bg-slate-100 hover:bg-slate-200 rounded-lg flex items-center justify-center text-slate-600 transition-colors disabled:opacity-50"
-                                >
-                                    <Icons.ArrowRight className="w-4 h-4" />
-                                </button>
+                            <form onSubmit={joinSession} className="relative">
+                                <input type="text" placeholder="Session ID" value={searchId} onChange={e => setSearchId(e.target.value)}
+                                    className="w-full h-14 pl-5 pr-12 rounded-xl border border-slate-200 focus:outline-none focus:border-blue-500" />
+                                <button type="submit" className="absolute right-2 top-2 p-2 bg-slate-100 rounded-lg"><Icons.ArrowRight className="w-4 h-4" /></button>
                             </form>
                         </div>
                     </div>
-                    
-                    <div className="mt-20 grid grid-cols-1 md:grid-cols-3 gap-8 text-left max-w-4xl w-full">
-                        {[
-                            { title: "Real-time Sync", desc: "Files appear instantly across all devices connected to the session." },
-                            { title: "Universal Access", desc: "Works on any device with a browser. No app install needed." },
-                            { title: "Instant Print", desc: "One-click printing for PDFs and Images directly from browser." }
-                        ].map((item, i) => (
-                            <div key={i} className="glass p-6 rounded-2xl">
-                                <h3 className="font-semibold text-slate-900 mb-2">{item.title}</h3>
-                                <p className="text-slate-500 text-sm">{item.desc}</p>
-                            </div>
-                        ))}
-                    </div>
                 </div>
             );
 
-            const DesktopSessionView = () => (
+            if (view === 'session') return (
                 <div className="min-h-screen flex flex-col md:flex-row">
-                    <div className="w-full md:w-[400px] bg-white border-r border-slate-200 p-8 flex flex-col z-10 no-print">
-                        <div className="mb-8">
-                            <button onClick={() => setView('landing')} className="flex items-center gap-2 text-slate-500 hover:text-slate-900 transition-colors mb-6 font-medium">
-                                <Icons.Zap className="w-5 h-5 text-blue-600" /> AeroDrop
-                            </button>
-                            <h2 className="text-2xl font-bold text-slate-900">Session Active</h2>
-                            <p className="text-slate-500 mt-1">Ready to receive files.</p>
-                        </div>
-
+                    <div className="w-full md:w-[400px] bg-white border-r border-slate-200 p-8 flex flex-col no-print">
+                        <button onClick={() => setView('landing')} className="flex items-center gap-2 text-slate-500 mb-6 font-bold"><Icons.Zap className="w-5 h-5" /> AeroDrop</button>
                         <div className="bg-slate-50 p-6 rounded-3xl border border-slate-100 text-center mb-8">
-                            <div className="mb-6 flex justify-center">
-                                <QRCode text={uploadUrl} />
-                            </div>
-                            <p className="text-sm font-medium text-slate-600 mb-4">Scan to upload photos or PDFs</p>
-                            
-                            <div className="flex items-center gap-2 bg-white p-2 rounded-lg border border-slate-200 shadow-sm">
-                                <div className="bg-slate-100 px-3 py-1.5 rounded-md text-sm font-mono font-bold text-slate-700 select-all">
-                                    {sessionId}
-                                </div>
-                                <button onClick={handleCopyLink} className="flex-1 flex items-center justify-center gap-2 text-xs font-semibold text-blue-600 hover:bg-blue-50 py-1.5 rounded-md transition-colors">
-                                    {copied ? <Icons.Check className="w-3 h-3" /> : <Icons.Copy className="w-3 h-3" />}
-                                    {copied ? 'Copied' : 'Copy Link'}
-                                </button>
+                            <div className="flex justify-center mb-6"><QRCode text={uploadUrl} /></div>
+                            <div className="flex items-center gap-2 bg-white p-2 rounded-lg border">
+                                <span className="bg-slate-100 px-3 py-1 font-mono font-bold">{sessionId}</span>
+                                <button onClick={() => { navigator.clipboard.writeText(uploadUrl); setCopied(true); setTimeout(() => setCopied(false), 2000); }} 
+                                    className="flex-1 text-xs font-bold text-blue-600">{copied ? 'Copied' : 'Copy Link'}</button>
                             </div>
                         </div>
-
-                        <div className="mt-auto">
-                            <div className="flex items-center gap-3 text-sm text-slate-500 bg-slate-50 p-4 rounded-xl">
-                                <div className={`w-2 h-2 rounded-full ${connectionStatus === 'connected' ? 'bg-green-500 animate-pulse' : 'bg-amber-400'}`}></div>
-                                {connectionStatus === 'connected' ? 'Live Sync Active' : 'Connecting...'}
-                            </div>
+                        <div className="mt-auto text-sm text-slate-500 bg-green-50 text-green-700 p-4 rounded-xl flex gap-2 items-center">
+                            <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span> Live Sync Active
                         </div>
                     </div>
-
-                    <div className="flex-1 p-8 md:p-12 overflow-y-auto">
+                    <div className="flex-1 p-8 overflow-y-auto">
                         <div className="max-w-5xl mx-auto">
                             <div className="flex justify-between items-end mb-8 no-print">
-                                <div>
-                                    <h2 className="text-3xl font-bold text-slate-900">Received Files</h2>
-                                    <p className="text-slate-500 mt-2">{files.length} items • {formatSize(files.reduce((acc, f) => acc + f.size, 0))}</p>
-                                </div>
-                                {files.length > 0 && (
-                                    <Button onClick={() => files.forEach(f => printFile(f.url))} variant="secondary">
-                                        <Icons.Printer className="w-4 h-4" /> Print All
-                                    </Button>
-                                )}
+                                <h2 className="text-3xl font-bold">Files ({files.length})</h2>
+                                {files.length > 0 && <Button onClick={() => files.forEach(f => printFile(f.url))} variant="secondary"><Icons.Printer className="w-4 h-4"/> Print All</Button>}
                             </div>
-
-                            {files.length === 0 ? (
-                                <div className="border-2 border-dashed border-slate-200 rounded-3xl h-96 flex flex-col items-center justify-center text-slate-400 bg-white/50">
-                                    <div className="w-20 h-20 bg-slate-100 rounded-full flex items-center justify-center mb-6">
-                                        <Icons.Wifi className="w-8 h-8 text-slate-300" />
-                                    </div>
-                                    <p className="text-lg font-medium">No files received yet</p>
-                                    <p className="text-sm mt-1">Uploads from mobile will appear here instantly</p>
-                                </div>
-                            ) : (
-                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                                    {files.map(file => (
-                                        <div key={file.id} className="file-card group bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden hover:shadow-xl transition-all duration-300 flex flex-col">
-                                            <div className="h-48 bg-slate-50 relative overflow-hidden flex items-center justify-center">
-                                                {file.type.includes('image') ? (
-                                                    <img src={file.url} alt={file.name} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" />
-                                                ) : (
-                                                    <Icons.File className="w-16 h-16 text-slate-300" />
-                                                )}
-                                                <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors flex items-center justify-center gap-2 opacity-0 group-hover:opacity-100 no-print">
-                                                    <button onClick={() => printFile(file.url)} className="p-3 bg-white rounded-full text-slate-900 hover:text-blue-600 transition-transform hover:scale-110 shadow-lg">
-                                                        <Icons.Printer className="w-5 h-5" />
-                                                    </button>
-                                                </div>
-                                            </div>
-                                            <div className="p-5 flex-1 flex flex-col">
-                                                <div className="flex items-start justify-between mb-2">
-                                                    <div className="flex-1 min-w-0 mr-2">
-                                                        <h3 className="font-semibold text-slate-900 truncate" title={file.name}>{file.name}</h3>
-                                                        <p className="text-xs text-slate-500 mt-1 uppercase tracking-wider font-medium">{file.type.split('/')[1] || 'FILE'}</p>
-                                                    </div>
-                                                    <button onClick={() => removeFile(file)} className="text-slate-400 hover:text-red-500 transition-colors no-print">
-                                                        <Icons.Trash className="w-4 h-4" />
-                                                    </button>
-                                                </div>
-                                                <div className="mt-auto pt-4 border-t border-slate-50 flex justify-between items-center text-xs text-slate-400">
-                                                    <span>{formatSize(file.size)}</span>
-                                                    <span>{file.createdAt ? new Date(file.createdAt.seconds * 1000).toLocaleTimeString() : '...'}</span>
-                                                </div>
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                                {files.map(file => (
+                                    <div key={file.id} className="bg-white rounded-2xl shadow-sm border overflow-hidden hover:shadow-lg transition-all group">
+                                        <div className="h-48 bg-slate-50 flex items-center justify-center relative">
+                                            {file.type.includes('image') ? <img src={file.url} className="w-full h-full object-cover" /> : <Icons.File className="w-16 h-16 text-slate-300" />}
+                                            <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
+                                                <button onClick={() => printFile(file.url)} className="p-3 bg-white rounded-full hover:scale-110 transition-transform"><Icons.Printer className="w-5 h-5"/></button>
                                             </div>
                                         </div>
-                                    ))}
-                                </div>
-                            )}
+                                        <div className="p-4">
+                                            <div className="flex justify-between mb-2">
+                                                <h3 className="font-bold truncate w-32">{file.name}</h3>
+                                                <button onClick={() => removeFile(file)} className="text-slate-300 hover:text-red-500"><Icons.Trash className="w-4 h-4"/></button>
+                                            </div>
+                                            <p className="text-xs text-slate-400">{formatSize(file.size)}</p>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
                         </div>
                     </div>
                 </div>
             );
 
-            const MobileUploadView = () => (
-                <div className="min-h-screen p-4 flex flex-col">
-                    <div className="bg-white/80 backdrop-blur-md rounded-2xl p-6 mb-6 shadow-sm border border-slate-100 flex items-center justify-between">
-                        <div>
-                            <h1 className="text-xl font-bold text-slate-900">AeroDrop</h1>
-                            <p className="text-slate-500 text-sm flex items-center gap-2 mt-1">
-                                <span className={`w-2 h-2 rounded-full ${connectionStatus === 'connected' ? 'bg-green-500' : 'bg-amber-400 animate-pulse'}`}></span>
-                                {connectionStatus === 'connected' ? `Connected: ${sessionId}` : 'Connecting...'}
-                            </p>
-                        </div>
-                        <button onClick={() => setView('landing')} className="text-slate-400 hover:text-slate-600 transition-colors text-sm font-medium">Exit</button>
+            if (view === 'mobile-upload') return (
+                <div className="min-h-screen p-4 flex flex-col bg-slate-50">
+                    <div className="bg-white p-4 rounded-xl mb-6 shadow-sm flex justify-between items-center">
+                        <span className="font-bold flex items-center gap-2"><span className="w-2 h-2 bg-green-500 rounded-full"></span> {sessionId}</span>
+                        <button onClick={() => setView('landing')} className="text-sm text-slate-400">Exit</button>
                     </div>
-
-                    <div className="flex-1 flex flex-col">
-                        <label className={`flex-1 relative group cursor-pointer ${uploading || connectionStatus !== 'connected' ? 'opacity-75 cursor-not-allowed' : ''}`}>
-                            <input 
-                                type="file" 
-                                multiple 
-                                onChange={handleUpload} 
-                                className="hidden" 
-                                accept="image/*,application/pdf"
-                                disabled={uploading || connectionStatus !== 'connected'}
-                            />
-                            <div className="absolute inset-0 border-3 border-dashed border-blue-200/50 rounded-[2rem] flex flex-col items-center justify-center bg-white/40 backdrop-blur-sm hover:bg-white/60 transition-all duration-300">
-                                {uploading ? (
-                                    <div className="flex flex-col items-center w-full px-8">
-                                        <Icons.Loading className="w-12 h-12 text-blue-500 mb-4" />
-                                        <h3 className="text-xl font-semibold text-slate-800 mb-2">Sending...</h3>
-                                        {uploadProgress.total > 0 && (
-                                            <>
-                                                <div className="w-full bg-slate-200 rounded-full h-2 mb-2">
-                                                    <div 
-                                                        className="bg-blue-500 h-2 rounded-full transition-all duration-300"
-                                                        style={{ width: `${(uploadProgress.current / uploadProgress.total) * 100}%` }}
-                                                    />
-                                                </div>
-                                                <p className="text-slate-500 text-sm">{uploadProgress.current} of {uploadProgress.total} files</p>
-                                            </>
-                                        )}
-                                        <p className="text-slate-400 text-xs mt-2">Please keep open</p>
-                                    </div>
-                                ) : connectionStatus !== 'connected' ? (
-                                    <div className="flex flex-col items-center">
-                                        {authError ? (
-                                            <>
-                                                <Icons.AlertCircle className="w-10 h-10 text-red-400 mb-4" />
-                                                <p className="text-red-500 font-medium text-center">Connection failed</p>
-                                                <p className="text-slate-400 text-xs text-center mt-1 px-4">{authError}</p>
-                                                <button onClick={() => window.location.reload()} className="mt-4 px-4 py-2 bg-blue-50 text-blue-600 rounded-lg text-sm font-semibold hover:bg-blue-100">Retry</button>
-                                            </>
-                                        ) : (
-                                            <>
-                                                <Icons.Loading className="w-10 h-10 text-slate-400 mb-4" />
-                                                <p className="text-slate-500 font-medium">Establishing secure link...</p>
-                                            </>
-                                        )}
-                                    </div>
-                                ) : (
-                                    <>
-                                        <div className="w-20 h-20 rounded-full bg-white shadow-xl shadow-blue-100 flex items-center justify-center mb-6 group-active:scale-95 transition-transform">
-                                            <Icons.Upload className="w-8 h-8 text-blue-600" />
-                                        </div>
-                                        <h3 className="text-2xl font-bold text-slate-900 mb-2">Tap to Send</h3>
-                                        <p className="text-slate-500">Photos & PDFs supported</p>
-                                    </>
-                                )}
+                    <label className={`flex-1 flex flex-col items-center justify-center border-4 border-dashed border-blue-200 rounded-[2rem] bg-white transition-all ${uploading ? 'opacity-50' : 'active:scale-95'}`}>
+                        <input type="file" multiple onChange={handleUpload} className="hidden" disabled={uploading} accept="image/*,application/pdf" />
+                        {uploading ? (
+                            <div className="text-center">
+                                <Icons.Loading className="w-12 h-12 text-blue-500 mb-4 mx-auto" />
+                                <h3 className="text-xl font-bold">Uploading...</h3>
+                                <p className="text-slate-500">{uploadProgress.current}/{uploadProgress.total}</p>
                             </div>
-                        </label>
-
-                        {files.length > 0 && (
-                            <div className="mt-8">
-                                <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-4 px-2">Recently Sent ({files.length})</h3>
-                                <div className="space-y-3">
-                                    {files.slice(0, 5).map(file => (
-                                        <div key={file.id} className="bg-white/80 backdrop-blur-sm p-4 rounded-xl flex items-center gap-4 shadow-sm border border-slate-100" style={{animation: 'slideIn 0.5s ease-out'}}>
-                                            <div className="w-10 h-10 rounded-lg bg-blue-50 flex items-center justify-center flex-shrink-0 text-blue-500">
-                                                {file.type.includes('image') ? <Icons.Image className="w-5 h-5"/> : <Icons.File className="w-5 h-5"/>}
-                                            </div>
-                                            <div className="flex-1 min-w-0">
-                                                <p className="font-semibold truncate text-slate-900">{file.name}</p>
-                                                <p className="text-xs text-slate-500 font-medium">{formatSize(file.size)}</p>
-                                            </div>
-                                            <div className="text-green-500 bg-green-50 p-1.5 rounded-full">
-                                                <Icons.Check className="w-4 h-4" />
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
+                        ) : (
+                            <div className="text-center">
+                                <div className="w-20 h-20 bg-blue-50 rounded-full flex items-center justify-center mx-auto mb-4 text-blue-500"><Icons.Upload className="w-8 h-8" /></div>
+                                <h3 className="text-2xl font-bold text-slate-900">Tap to Upload</h3>
                             </div>
                         )}
-                    </div>
+                    </label>
                 </div>
-            );
-
-            return (
-                <>
-                    <Background />
-                    <ConnectionBanner />
-                    {view === 'landing' && <LandingView />}
-                    {view === 'session' && <DesktopSessionView />}
-                    {view === 'mobile-upload' && <MobileUploadView />}
-                </>
             );
         };
 
-        const root = createRoot(document.getElementById('root'));
-        root.render(<App />);
+        createRoot(document.getElementById('root')).render(<App />);
     </script>
 </body>
 </html>
