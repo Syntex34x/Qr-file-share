@@ -112,7 +112,8 @@
         // --- Firebase Imports ---
         import { initializeApp } from "firebase/app";
         import { getAnalytics } from "firebase/analytics";
-        import { getAuth, signInAnonymously, onAuthStateChanged } from "firebase/auth";
+        // Added signInWithCustomToken to imports
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "firebase/auth";
         import { getFirestore, collection, addDoc, onSnapshot, query, where, deleteDoc, doc, serverTimestamp } from "firebase/firestore";
         import { getStorage, ref, uploadBytes, getDownloadURL, deleteObject } from "firebase/storage";
 
@@ -222,17 +223,29 @@
             const [copied, setCopied] = useState(false);
             const [user, setUser] = useState(null);
             const [uploading, setUploading] = useState(false);
+            const [authError, setAuthError] = useState(null);
 
             // 1. Initialize Auth
             useEffect(() => {
                 const initAuth = async () => {
-                    // Force anonymous sign in to ensure we have a user for security rules
-                    await signInAnonymously(auth);
+                    try {
+                        // Check for provided token first
+                        if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                            await signInWithCustomToken(auth, __initial_auth_token);
+                        } else {
+                            // Fallback to anonymous
+                            await signInAnonymously(auth);
+                        }
+                    } catch (err) {
+                        console.error("Authentication failed:", err);
+                        setAuthError("Failed to connect to secure server. Please refresh.");
+                    }
                 };
                 initAuth();
 
                 const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
                     setUser(currentUser);
+                    if (currentUser) setAuthError(null);
                 });
                 return () => unsubscribe();
             }, []);
@@ -555,8 +568,19 @@
                                     </div>
                                 ) : !user ? (
                                     <div className="flex flex-col items-center">
-                                        <Icons.Loading className="w-10 h-10 text-slate-400 mb-4" />
-                                        <p className="text-slate-500 font-medium">Establishing secure link...</p>
+                                        {authError ? (
+                                            <>
+                                                <Icons.Zap className="w-10 h-10 text-red-400 mb-4" />
+                                                <p className="text-red-500 font-medium text-center">Connection failed</p>
+                                                <p className="text-slate-400 text-xs text-center mt-1 px-4">{authError}</p>
+                                                <button onClick={() => window.location.reload()} className="mt-4 px-4 py-2 bg-blue-50 text-blue-600 rounded-lg text-sm font-semibold hover:bg-blue-100">Retry</button>
+                                            </>
+                                        ) : (
+                                            <>
+                                                <Icons.Loading className="w-10 h-10 text-slate-400 mb-4" />
+                                                <p className="text-slate-500 font-medium">Establishing secure link...</p>
+                                            </>
+                                        )}
                                     </div>
                                 ) : (
                                     <>
