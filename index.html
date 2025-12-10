@@ -112,7 +112,6 @@
         // --- Firebase Imports ---
         import { initializeApp } from "firebase/app";
         import { getAnalytics } from "firebase/analytics";
-        // Added signInWithCustomToken to imports
         import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "firebase/auth";
         import { getFirestore, collection, addDoc, onSnapshot, query, where, deleteDoc, doc, serverTimestamp } from "firebase/firestore";
         import { getStorage, ref, uploadBytes, getDownloadURL, deleteObject } from "firebase/storage";
@@ -228,17 +227,34 @@
             // 1. Initialize Auth
             useEffect(() => {
                 const initAuth = async () => {
+                    let signedIn = false;
                     try {
                         // Check for provided token first
                         if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-                            await signInWithCustomToken(auth, __initial_auth_token);
-                        } else {
+                            try {
+                                await signInWithCustomToken(auth, __initial_auth_token);
+                                signedIn = true;
+                            } catch (tokenErr) {
+                                console.warn("Custom token auth failed, retrying with anonymous auth:", tokenErr);
+                                // Fall through to anonymous auth
+                            }
+                        }
+                        
+                        if (!signedIn) {
                             // Fallback to anonymous
                             await signInAnonymously(auth);
                         }
                     } catch (err) {
                         console.error("Authentication failed:", err);
-                        setAuthError("Failed to connect to secure server. Please refresh.");
+                        
+                        let errorMessage = "Failed to connect to secure server. Please refresh.";
+                        if (err.code === 'auth/operation-not-allowed') {
+                            errorMessage = "Anonymous login disabled in Firebase Console.";
+                        } else if (err.code === 'auth/network-request-failed') {
+                            errorMessage = "Network error. Check your connection.";
+                        }
+                        
+                        setAuthError(errorMessage);
                     }
                 };
                 initAuth();
