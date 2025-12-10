@@ -179,6 +179,44 @@
             return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
         };
 
+        // Image compression helper
+        const compressImage = (file) => {
+            return new Promise((resolve) => {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    const img = new Image();
+                    img.onload = () => {
+                        const canvas = document.createElement('canvas');
+                        let width = img.width;
+                        let height = img.height;
+                        
+                        // Resize if too large
+                        const maxDim = 1920;
+                        if (width > maxDim || height > maxDim) {
+                            if (width > height) {
+                                height = (height / width) * maxDim;
+                                width = maxDim;
+                            } else {
+                                width = (width / height) * maxDim;
+                                height = maxDim;
+                            }
+                        }
+                        
+                        canvas.width = width;
+                        canvas.height = height;
+                        const ctx = canvas.getContext('2d');
+                        ctx.drawImage(img, 0, 0, width, height);
+                        
+                        canvas.toBlob((blob) => {
+                            resolve(new File([blob], file.name, { type: 'image/jpeg' }));
+                        }, 'image/jpeg', 0.85);
+                    };
+                    img.src = e.target.result;
+                };
+                reader.readAsDataURL(file);
+            });
+        };
+
         // --- Components ---
 
         const Background = () => (
@@ -234,6 +272,7 @@
             const [copied, setCopied] = useState(false);
             const [user, setUser] = useState(null);
             const [uploading, setUploading] = useState(false);
+            const [uploadProgress, setUploadProgress] = useState({ current: 0, total: 0 });
             const [authError, setAuthError] = useState(null);
             const [connectionStatus, setConnectionStatus] = useState('connecting');
 
@@ -383,32 +422,64 @@
                 const filesToUpload = Array.from(e.target.files);
                 if (filesToUpload.length === 0) return;
 
+                // Check file size limit (10MB per file)
+                const MAX_SIZE = 10 * 1024 * 1024;
+                const oversizedFiles = filesToUpload.filter(f => f.size > MAX_SIZE);
+                if (oversizedFiles.length > 0) {
+                    alert(`Files too large (max 10MB): ${oversizedFiles.map(f => f.name).join(', ')}`);
+                    e.target.value = null;
+                    return;
+                }
+
                 setUploading(true);
+                setUploadProgress({ current: 0, total: filesToUpload.length });
 
                 try {
-                    const uploadPromises = filesToUpload.map(async (file) => {
-                        const storageRef = ref(storage, `uploads/${sessionId}/${Date.now()}_${file.name}`);
+                    // Optimize: Upload files in parallel batches of 3
+                    const batchSize = 3;
+                    let completed = 0;
+                    
+                    for (let i = 0; i < filesToUpload.length; i += batchSize) {
+                        const batch = filesToUpload.slice(i, i + batchSize);
                         
-                        const snapshot = await uploadBytes(storageRef, file);
-                        const downloadURL = await getDownloadURL(snapshot.ref);
+                        await Promise.all(batch.map(async (file) => {
+                            try {
+                                // Compress images before upload
+                                let fileToUpload = file;
+                                if (file.type.startsWith('image/') && file.size > 500000) {
+                                    fileToUpload = await compressImage(file);
+                                }
 
-                        await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'files'), {
-                            sessionId: sessionId,
-                            name: file.name,
-                            size: file.size,
-                            type: file.type,
-                            url: downloadURL,
-                            storagePath: snapshot.ref.fullPath,
-                            createdAt: serverTimestamp()
-                        });
-                    });
+                                const timestamp = Date.now();
+                                const storageRef = ref(storage, `uploads/${sessionId}/${timestamp}_${file.name}`);
+                                
+                                const snapshot = await uploadBytes(storageRef, fileToUpload);
+                                const downloadURL = await getDownloadURL(snapshot.ref);
 
-                    await Promise.all(uploadPromises);
+                                await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'files'), {
+                                    sessionId: sessionId,
+                                    name: file.name,
+                                    size: file.size,
+                                    type: file.type,
+                                    url: downloadURL,
+                                    storagePath: snapshot.ref.fullPath,
+                                    createdAt: serverTimestamp()
+                                });
+                                
+                                completed++;
+                                setUploadProgress({ current: completed, total: filesToUpload.length });
+                            } catch (err) {
+                                console.error(`Failed to upload ${file.name}:`, err);
+                                throw err;
+                            }
+                        }));
+                    }
                 } catch (error) {
                     console.error("Upload failed:", error);
                     alert(`Upload failed: ${error.message}`);
                 } finally {
                     setUploading(false);
+                    setUploadProgress({ current: 0, total: 0 });
                     e.target.value = null;
                 }
             };
@@ -464,7 +535,7 @@
                 <div className="min-h-screen flex flex-col items-center justify-center p-6 text-center">
                     <div className="max-w-3xl w-full animate-float">
                         <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-blue-50 text-blue-600 text-sm font-semibold mb-8 border border-blue-100">
-                            <Icons.Zap className="w-4 h-4" /> v2.0 • Firebase Enabled
+                            <Icons.Zap className="w-4 h-4" /> v2.0 • Optimized
                         </div>
                         <h1 className="text-5xl md:text-7xl font-bold text-slate-900 tracking-tight mb-6">
                             Transfer files <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-purple-600">instantly.</span>
@@ -660,10 +731,21 @@
                             />
                             <div className="absolute inset-0 border-3 border-dashed border-blue-200/50 rounded-[2rem] flex flex-col items-center justify-center bg-white/40 backdrop-blur-sm hover:bg-white/60 transition-all duration-300">
                                 {uploading ? (
-                                    <div className="flex flex-col items-center">
+                                    <div className="flex flex-col items-center w-full px-8">
                                         <Icons.Loading className="w-12 h-12 text-blue-500 mb-4" />
-                                        <h3 className="text-xl font-semibold text-slate-800 mb-1">Sending...</h3>
-                                        <p className="text-slate-500 text-sm">Please keep open</p>
+                                        <h3 className="text-xl font-semibold text-slate-800 mb-2">Sending...</h3>
+                                        {uploadProgress.total > 0 && (
+                                            <>
+                                                <div className="w-full bg-slate-200 rounded-full h-2 mb-2">
+                                                    <div 
+                                                        className="bg-blue-500 h-2 rounded-full transition-all duration-300"
+                                                        style={{ width: `${(uploadProgress.current / uploadProgress.total) * 100}%` }}
+                                                    />
+                                                </div>
+                                                <p className="text-slate-500 text-sm">{uploadProgress.current} of {uploadProgress.total} files</p>
+                                            </>
+                                        )}
+                                        <p className="text-slate-400 text-xs mt-2">Please keep open</p>
                                     </div>
                                 ) : connectionStatus !== 'connected' ? (
                                     <div className="flex flex-col items-center">
