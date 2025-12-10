@@ -524,61 +524,67 @@
             );
 
             const MobileUploadView = () => (
-                <div className="min-h-screen p-4 flex flex-col bg-slate-900 text-white">
-                    <div className="glass-dark rounded-2xl p-6 mb-6 flex items-center justify-between">
+                <div className="min-h-screen p-4 flex flex-col">
+                    <div className="bg-white/80 backdrop-blur-md rounded-2xl p-6 mb-6 shadow-sm border border-slate-100 flex items-center justify-between">
                         <div>
-                            <h1 className="text-xl font-bold">AeroDrop</h1>
-                            <p className="text-slate-400 text-sm flex items-center gap-2">
-                                <span className="w-2 h-2 rounded-full bg-green-500"></span>
-                                Connected to {sessionId}
+                            <h1 className="text-xl font-bold text-slate-900">AeroDrop</h1>
+                            <p className="text-slate-500 text-sm flex items-center gap-2 mt-1">
+                                <span className={`w-2 h-2 rounded-full ${user ? 'bg-green-500' : 'bg-amber-400 animate-pulse'}`}></span>
+                                {user ? `Connected: ${sessionId}` : 'Connecting...'}
                             </p>
                         </div>
-                        <button onClick={() => setView('landing')} className="text-slate-400 p-2">Exit</button>
+                        <button onClick={() => setView('landing')} className="text-slate-400 hover:text-slate-600 transition-colors text-sm font-medium">Exit</button>
                     </div>
 
                     <div className="flex-1 flex flex-col">
-                        <label className={`flex-1 relative group cursor-pointer ${uploading ? 'opacity-50 pointer-events-none' : ''}`}>
+                        <label className={`flex-1 relative group cursor-pointer ${uploading || !user ? 'opacity-75 cursor-not-allowed' : ''}`}>
                             <input 
                                 type="file" 
                                 multiple 
                                 onChange={handleUpload} 
                                 className="hidden" 
                                 accept="image/*,application/pdf"
-                                disabled={uploading}
+                                disabled={uploading || !user}
                             />
-                            <div className="absolute inset-0 border-2 border-dashed border-slate-700 rounded-3xl flex flex-col items-center justify-center bg-slate-800/50 hover:bg-slate-800 transition-colors">
+                            <div className="absolute inset-0 border-3 border-dashed border-blue-200/50 rounded-[2rem] flex flex-col items-center justify-center bg-white/40 backdrop-blur-sm hover:bg-white/60 transition-all duration-300">
                                 {uploading ? (
                                     <div className="flex flex-col items-center">
                                         <Icons.Loading className="w-12 h-12 text-blue-500 mb-4" />
-                                        <h3 className="text-xl font-semibold mb-2">Uploading...</h3>
+                                        <h3 className="text-xl font-semibold text-slate-800 mb-1">Sending...</h3>
+                                        <p className="text-slate-500 text-sm">Please keep open</p>
+                                    </div>
+                                ) : !user ? (
+                                    <div className="flex flex-col items-center">
+                                        <Icons.Loading className="w-10 h-10 text-slate-400 mb-4" />
+                                        <p className="text-slate-500 font-medium">Establishing secure link...</p>
                                     </div>
                                 ) : (
                                     <>
-                                        <div className="w-20 h-20 rounded-full bg-blue-600 flex items-center justify-center mb-6 shadow-lg shadow-blue-900/50 group-active:scale-95 transition-transform">
-                                            <Icons.Upload className="w-8 h-8 text-white" />
+                                        <div className="w-20 h-20 rounded-full bg-white shadow-xl shadow-blue-100 flex items-center justify-center mb-6 group-active:scale-95 transition-transform">
+                                            <Icons.Upload className="w-8 h-8 text-blue-600" />
                                         </div>
-                                        <h3 className="text-xl font-semibold mb-2">Tap to Upload</h3>
-                                        <p className="text-slate-400 text-sm">Photos or PDFs</p>
+                                        <h3 className="text-2xl font-bold text-slate-900 mb-2">Tap to Send</h3>
+                                        <p className="text-slate-500">Photos & PDFs supported</p>
                                     </>
                                 )}
                             </div>
                         </label>
 
                         {files.length > 0 && (
-                            <div className="mt-6">
-                                <h3 className="text-sm font-semibold text-slate-400 uppercase tracking-wider mb-3">Sent ({files.length})</h3>
+                            <div className="mt-8">
+                                <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-4 px-2">Recently Sent ({files.length})</h3>
                                 <div className="space-y-3">
                                     {files.slice(0, 5).map(file => (
-                                        <div key={file.id} className="bg-slate-800 p-4 rounded-xl flex items-center gap-4 animate-float" style={{animationDuration: '0.5s', animationName: 'slideIn'}}>
-                                            <div className="w-10 h-10 rounded-lg bg-slate-700 flex items-center justify-center flex-shrink-0 text-slate-400">
+                                        <div key={file.id} className="bg-white/80 backdrop-blur-sm p-4 rounded-xl flex items-center gap-4 shadow-sm border border-slate-100 animate-float" style={{animationDuration: '0.5s', animationName: 'slideIn'}}>
+                                            <div className="w-10 h-10 rounded-lg bg-blue-50 flex items-center justify-center flex-shrink-0 text-blue-500">
                                                 {file.type.includes('image') ? <Icons.Image className="w-5 h-5"/> : <Icons.File className="w-5 h-5"/>}
                                             </div>
                                             <div className="flex-1 min-w-0">
-                                                <p className="font-medium truncate text-slate-200">{file.name}</p>
-                                                <p className="text-xs text-slate-500">{formatSize(file.size)}</p>
+                                                <p className="font-semibold truncate text-slate-900">{file.name}</p>
+                                                <p className="text-xs text-slate-500 font-medium">{formatSize(file.size)}</p>
                                             </div>
-                                            <div className="text-green-500">
-                                                <Icons.Check className="w-5 h-5" />
+                                            <div className="text-green-500 bg-green-50 p-1.5 rounded-full">
+                                                <Icons.Check className="w-4 h-4" />
                                             </div>
                                         </div>
                                     ))}
