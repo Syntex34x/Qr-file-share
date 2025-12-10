@@ -100,6 +100,11 @@
             .print-container { padding: 0; }
             .file-card { break-inside: avoid; border: 1px solid #ccc; box-shadow: none; margin-bottom: 20px; }
         }
+
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
     </style>
 </head>
 <body>
@@ -111,8 +116,7 @@
         
         // --- Firebase Imports ---
         import { initializeApp } from "firebase/app";
-        import { getAnalytics } from "firebase/analytics";
-        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "firebase/auth";
+        import { getAuth, signInAnonymously, onAuthStateChanged } from "firebase/auth";
         import { getFirestore, collection, addDoc, onSnapshot, query, where, deleteDoc, doc, serverTimestamp } from "firebase/firestore";
         import { getStorage, ref, uploadBytes, getDownloadURL, deleteObject } from "firebase/storage";
 
@@ -128,14 +132,21 @@
         };
 
         // --- Initialize Firebase Services ---
-        const app = initializeApp(firebaseConfig);
-        const analytics = getAnalytics(app);
-        const auth = getAuth(app);
-        const db = getFirestore(app);
-        const storage = getStorage(app);
+        let app, auth, db, storage;
+        let firebaseInitialized = false;
 
-        // App ID for Firestore paths (Use global or default)
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'qr-share-default';
+        try {
+            app = initializeApp(firebaseConfig);
+            auth = getAuth(app);
+            db = getFirestore(app);
+            storage = getStorage(app);
+            firebaseInitialized = true;
+        } catch (error) {
+            console.error("Firebase initialization failed:", error);
+        }
+
+        // App ID for Firestore paths
+        const appId = 'qr-share-default';
 
         // --- Icons (SVG Components) ---
         const Icon = ({ path, className }) => (
@@ -156,6 +167,7 @@
             ArrowRight: (p) => <Icon {...p} path={<><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></>} />,
             Wifi: (p) => <Icon {...p} path={<><path d="M5 12.55a11 11 0 0 1 14.08 0"/><path d="M1.42 9a16 16 0 0 1 21.16 0"/><path d="M8.53 16.11a6 6 0 0 1 6.95 0"/><line x1="12" y1="20" x2="12.01" y2="20"/></>} />,
             Loading: (p) => <Icon {...p} path={<path d="M21 12a9 9 0 1 1-6.219-8.56" />} className={`${p.className} animate-spin`} />,
+            AlertCircle: (p) => <Icon {...p} path={<><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></>} />,
         };
 
         // --- Utils ---
@@ -197,7 +209,7 @@
             const qrRef = useRef(null);
             
             useEffect(() => {
-                if (qrRef.current) {
+                if (qrRef.current && window.QRCode) {
                     qrRef.current.innerHTML = '';
                     new window.QRCode(qrRef.current, {
                         text: text,
@@ -215,7 +227,7 @@
 
         // --- Main App Component ---
         const App = () => {
-            const [view, setView] = useState('landing'); // landing, session, mobile-upload
+            const [view, setView] = useState('landing');
             const [sessionId, setSessionId] = useState('');
             const [files, setFiles] = useState([]);
             const [searchId, setSearchId] = useState('');
@@ -223,46 +235,66 @@
             const [user, setUser] = useState(null);
             const [uploading, setUploading] = useState(false);
             const [authError, setAuthError] = useState(null);
+            const [connectionStatus, setConnectionStatus] = useState('connecting');
 
-            // 1. Initialize Auth
+            // 1. Initialize Auth with improved error handling
             useEffect(() => {
-                const initAuth = async () => {
-                    let signedIn = false;
+                if (!firebaseInitialized) {
+                    setAuthError("Firebase failed to initialize. Please refresh the page.");
+                    setConnectionStatus('error');
+                    return;
+                }
+
+                let retryCount = 0;
+                const maxRetries = 3;
+
+                const attemptAuth = async () => {
                     try {
-                        // Check for provided token first
-                        if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-                            try {
-                                await signInWithCustomToken(auth, __initial_auth_token);
-                                signedIn = true;
-                            } catch (tokenErr) {
-                                console.warn("Custom token auth failed, retrying with anonymous auth:", tokenErr);
-                                // Fall through to anonymous auth
-                            }
-                        }
-                        
-                        if (!signedIn) {
-                            // Fallback to anonymous
-                            await signInAnonymously(auth);
-                        }
+                        setConnectionStatus('connecting');
+                        await signInAnonymously(auth);
+                        setConnectionStatus('connected');
+                        setAuthError(null);
                     } catch (err) {
-                        console.error("Authentication failed:", err);
+                        console.error("Authentication error:", err);
                         
-                        let errorMessage = "Failed to connect to secure server. Please refresh.";
+                        let errorMessage = "Connection failed. ";
+                        
                         if (err.code === 'auth/operation-not-allowed') {
-                            errorMessage = "Anonymous login disabled in Firebase Console.";
+                            errorMessage = "Anonymous authentication is disabled. Please enable it in Firebase Console (Authentication > Sign-in method).";
+                            setConnectionStatus('error');
                         } else if (err.code === 'auth/network-request-failed') {
-                            errorMessage = "Network error. Check your connection.";
+                            errorMessage = "Network error. Please check your internet connection.";
+                            if (retryCount < maxRetries) {
+                                retryCount++;
+                                errorMessage += ` Retrying (${retryCount}/${maxRetries})...`;
+                                setAuthError(errorMessage);
+                                setTimeout(() => attemptAuth(), 2000);
+                                return;
+                            } else {
+                                setConnectionStatus('error');
+                            }
+                        } else if (err.code === 'auth/too-many-requests') {
+                            errorMessage = "Too many connection attempts. Please wait a moment and refresh.";
+                            setConnectionStatus('error');
+                        } else {
+                            errorMessage = `Connection error: ${err.message}`;
+                            setConnectionStatus('error');
                         }
                         
                         setAuthError(errorMessage);
                     }
                 };
-                initAuth();
+
+                attemptAuth();
 
                 const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
                     setUser(currentUser);
-                    if (currentUser) setAuthError(null);
+                    if (currentUser) {
+                        setAuthError(null);
+                        setConnectionStatus('connected');
+                    }
                 });
+
                 return () => unsubscribe();
             }, []);
 
@@ -274,11 +306,9 @@
 
                 if (sessionParam) {
                     setSessionId(sessionParam);
-                    // If on mobile with a session param, go straight to upload
                     if (isMobile) {
                         setView('mobile-upload');
                     } else {
-                        // If desktop has session param, assume they are re-joining or refreshing
                         setView('session');
                     }
                 }
@@ -286,27 +316,30 @@
 
             // 3. Real-time Firestore Sync
             useEffect(() => {
-                if (!sessionId || !user) return;
+                if (!sessionId || !user || !firebaseInitialized) return;
 
-                // Query files for this specific session ID
-                const q = query(
-                    collection(db, 'artifacts', appId, 'public', 'data', 'files'),
-                    where('sessionId', '==', sessionId)
-                );
+                try {
+                    const q = query(
+                        collection(db, 'artifacts', appId, 'public', 'data', 'files'),
+                        where('sessionId', '==', sessionId)
+                    );
 
-                const unsubscribe = onSnapshot(q, (snapshot) => {
-                    const fetchedFiles = snapshot.docs.map(doc => ({
-                        id: doc.id,
-                        ...doc.data()
-                    }));
-                    // Sort in memory (newer first) to avoid complex index requirements
-                    fetchedFiles.sort((a, b) => b.createdAt?.seconds - a.createdAt?.seconds);
-                    setFiles(fetchedFiles);
-                }, (error) => {
-                    console.error("Error fetching files:", error);
-                });
+                    const unsubscribe = onSnapshot(q, (snapshot) => {
+                        const fetchedFiles = snapshot.docs.map(doc => ({
+                            id: doc.id,
+                            ...doc.data()
+                        }));
+                        fetchedFiles.sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
+                        setFiles(fetchedFiles);
+                    }, (error) => {
+                        console.error("Error fetching files:", error);
+                        setAuthError("Failed to sync files. Check Firestore permissions.");
+                    });
 
-                return () => unsubscribe();
+                    return () => unsubscribe();
+                } catch (error) {
+                    console.error("Firestore setup error:", error);
+                }
             }, [sessionId, user]);
 
             const uploadUrl = useMemo(() => {
@@ -315,6 +348,10 @@
             }, [sessionId]);
 
             const startSession = () => {
+                if (connectionStatus !== 'connected') {
+                    setAuthError("Please wait for connection to establish.");
+                    return;
+                }
                 const newId = Math.random().toString(36).substring(2, 8).toUpperCase();
                 setSessionId(newId);
                 setFiles([]);
@@ -323,9 +360,12 @@
 
             const joinSession = (e) => {
                 e.preventDefault();
+                if (connectionStatus !== 'connected') {
+                    setAuthError("Please wait for connection to establish.");
+                    return;
+                }
                 if (searchId.length > 3) {
                     setSessionId(searchId.toUpperCase());
-                    // Decide view based on device
                     const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
                     setView(isMobile ? 'mobile-upload' : 'session');
                 }
@@ -337,9 +377,8 @@
                 setTimeout(() => setCopied(false), 2000);
             };
 
-            // --- Firebase File Handling ---
             const handleUpload = async (e) => {
-                if (!user || !sessionId) return;
+                if (!user || !sessionId || !firebaseInitialized) return;
                 
                 const filesToUpload = Array.from(e.target.files);
                 if (filesToUpload.length === 0) return;
@@ -347,23 +386,19 @@
                 setUploading(true);
 
                 try {
-                    // Upload each file to Storage, then add metadata to Firestore
                     const uploadPromises = filesToUpload.map(async (file) => {
-                        // Storage Path: uploads/{sessionId}/{timestamp_filename}
                         const storageRef = ref(storage, `uploads/${sessionId}/${Date.now()}_${file.name}`);
                         
-                        // 1. Upload to Storage
                         const snapshot = await uploadBytes(storageRef, file);
                         const downloadURL = await getDownloadURL(snapshot.ref);
 
-                        // 2. Save metadata to Firestore
                         await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'files'), {
                             sessionId: sessionId,
                             name: file.name,
                             size: file.size,
                             type: file.type,
                             url: downloadURL,
-                            storagePath: snapshot.ref.fullPath, // Save path for deletion later
+                            storagePath: snapshot.ref.fullPath,
                             createdAt: serverTimestamp()
                         });
                     });
@@ -371,24 +406,21 @@
                     await Promise.all(uploadPromises);
                 } catch (error) {
                     console.error("Upload failed:", error);
-                    alert("Upload failed. Please try again.");
+                    alert(`Upload failed: ${error.message}`);
                 } finally {
                     setUploading(false);
-                    // Reset input
                     e.target.value = null;
                 }
             };
 
             const removeFile = async (file) => {
-                if (!user) return;
+                if (!user || !firebaseInitialized) return;
                 try {
-                    // 1. Delete from Firestore
                     await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'files', file.id));
                     
-                    // 2. Delete from Storage (if path exists)
                     if (file.storagePath) {
                         const fileRef = ref(storage, file.storagePath);
-                        await deleteObject(fileRef).catch(err => console.log("Storage delete skipped/failed:", err));
+                        await deleteObject(fileRef).catch(err => console.log("Storage delete skipped:", err));
                     }
                 } catch (error) {
                     console.error("Error removing file:", error);
@@ -404,6 +436,30 @@
 
             // --- Views ---
 
+            const ConnectionBanner = () => {
+                if (connectionStatus === 'connected') return null;
+                
+                return (
+                    <div className={`fixed top-4 left-1/2 transform -translate-x-1/2 z-50 px-6 py-3 rounded-xl shadow-lg flex items-center gap-3 ${
+                        connectionStatus === 'error' ? 'bg-red-50 border border-red-200' : 'bg-amber-50 border border-amber-200'
+                    }`}>
+                        {connectionStatus === 'error' ? (
+                            <Icons.AlertCircle className="w-5 h-5 text-red-500" />
+                        ) : (
+                            <Icons.Loading className="w-5 h-5 text-amber-500" />
+                        )}
+                        <span className={`text-sm font-medium ${connectionStatus === 'error' ? 'text-red-700' : 'text-amber-700'}`}>
+                            {connectionStatus === 'error' ? 'Connection Error' : 'Connecting to server...'}
+                        </span>
+                        {connectionStatus === 'error' && authError && (
+                            <button onClick={() => window.location.reload()} className="ml-2 px-3 py-1 bg-red-100 hover:bg-red-200 rounded-lg text-xs font-semibold text-red-700 transition-colors">
+                                Retry
+                            </button>
+                        )}
+                    </div>
+                );
+            };
+
             const LandingView = () => (
                 <div className="min-h-screen flex flex-col items-center justify-center p-6 text-center">
                     <div className="max-w-3xl w-full animate-float">
@@ -417,20 +473,49 @@
                             No login required. Secure, real-time file sharing and printing designed for seamless workflows.
                         </p>
                         
+                        {authError && (
+                            <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-xl text-red-700 text-sm max-w-md mx-auto">
+                                <div className="flex items-start gap-2">
+                                    <Icons.AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5" />
+                                    <div className="flex-1 text-left">
+                                        <p className="font-semibold mb-1">Connection Issue</p>
+                                        <p>{authError}</p>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+                        
                         <div className="flex flex-col sm:flex-row items-center justify-center gap-4 w-full">
-                            <Button onClick={startSession} className="w-full sm:w-auto h-14 text-lg px-8">
-                                Start Quick Session <Icons.ArrowRight className="w-5 h-5" />
+                            <Button 
+                                onClick={startSession} 
+                                className="w-full sm:w-auto h-14 text-lg px-8"
+                                disabled={connectionStatus !== 'connected'}
+                            >
+                                {connectionStatus === 'connecting' ? (
+                                    <>
+                                        <Icons.Loading className="w-5 h-5" /> Connecting...
+                                    </>
+                                ) : (
+                                    <>
+                                        Start Quick Session <Icons.ArrowRight className="w-5 h-5" />
+                                    </>
+                                )}
                             </Button>
                             
                             <form onSubmit={joinSession} className="relative w-full sm:w-auto">
                                 <input 
                                     type="text" 
                                     placeholder="Enter Session ID" 
-                                    className="w-full h-14 pl-5 pr-12 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all shadow-sm"
+                                    className="w-full h-14 pl-5 pr-12 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all shadow-sm disabled:opacity-50"
                                     value={searchId}
                                     onChange={e => setSearchId(e.target.value)}
+                                    disabled={connectionStatus !== 'connected'}
                                 />
-                                <button type="submit" className="absolute right-2 top-2 bottom-2 aspect-square bg-slate-100 hover:bg-slate-200 rounded-lg flex items-center justify-center text-slate-600 transition-colors">
+                                <button 
+                                    type="submit" 
+                                    disabled={connectionStatus !== 'connected'}
+                                    className="absolute right-2 top-2 bottom-2 aspect-square bg-slate-100 hover:bg-slate-200 rounded-lg flex items-center justify-center text-slate-600 transition-colors disabled:opacity-50"
+                                >
                                     <Icons.ArrowRight className="w-4 h-4" />
                                 </button>
                             </form>
@@ -454,7 +539,6 @@
 
             const DesktopSessionView = () => (
                 <div className="min-h-screen flex flex-col md:flex-row">
-                    {/* Left Sidebar (Control Panel) */}
                     <div className="w-full md:w-[400px] bg-white border-r border-slate-200 p-8 flex flex-col z-10 no-print">
                         <div className="mb-8">
                             <button onClick={() => setView('landing')} className="flex items-center gap-2 text-slate-500 hover:text-slate-900 transition-colors mb-6 font-medium">
@@ -471,7 +555,7 @@
                             <p className="text-sm font-medium text-slate-600 mb-4">Scan to upload photos or PDFs</p>
                             
                             <div className="flex items-center gap-2 bg-white p-2 rounded-lg border border-slate-200 shadow-sm">
-                                <div className="bg-slate-100 px-3 py-1.5 roundedmd text-sm font-mono font-bold text-slate-700 select-all">
+                                <div className="bg-slate-100 px-3 py-1.5 rounded-md text-sm font-mono font-bold text-slate-700 select-all">
                                     {sessionId}
                                 </div>
                                 <button onClick={handleCopyLink} className="flex-1 flex items-center justify-center gap-2 text-xs font-semibold text-blue-600 hover:bg-blue-50 py-1.5 rounded-md transition-colors">
@@ -483,13 +567,12 @@
 
                         <div className="mt-auto">
                             <div className="flex items-center gap-3 text-sm text-slate-500 bg-slate-50 p-4 rounded-xl">
-                                <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
-                                Live Sync Active
+                                <div className={`w-2 h-2 rounded-full ${connectionStatus === 'connected' ? 'bg-green-500 animate-pulse' : 'bg-amber-400'}`}></div>
+                                {connectionStatus === 'connected' ? 'Live Sync Active' : 'Connecting...'}
                             </div>
                         </div>
                     </div>
 
-                    {/* Right Content (Files Grid) */}
                     <div className="flex-1 p-8 md:p-12 overflow-y-auto">
                         <div className="max-w-5xl mx-auto">
                             <div className="flex justify-between items-end mb-8 no-print">
@@ -558,22 +641,22 @@
                         <div>
                             <h1 className="text-xl font-bold text-slate-900">AeroDrop</h1>
                             <p className="text-slate-500 text-sm flex items-center gap-2 mt-1">
-                                <span className={`w-2 h-2 rounded-full ${user ? 'bg-green-500' : 'bg-amber-400 animate-pulse'}`}></span>
-                                {user ? `Connected: ${sessionId}` : 'Connecting...'}
+                                <span className={`w-2 h-2 rounded-full ${connectionStatus === 'connected' ? 'bg-green-500' : 'bg-amber-400 animate-pulse'}`}></span>
+                                {connectionStatus === 'connected' ? `Connected: ${sessionId}` : 'Connecting...'}
                             </p>
                         </div>
                         <button onClick={() => setView('landing')} className="text-slate-400 hover:text-slate-600 transition-colors text-sm font-medium">Exit</button>
                     </div>
 
                     <div className="flex-1 flex flex-col">
-                        <label className={`flex-1 relative group cursor-pointer ${uploading || !user ? 'opacity-75 cursor-not-allowed' : ''}`}>
+                        <label className={`flex-1 relative group cursor-pointer ${uploading || connectionStatus !== 'connected' ? 'opacity-75 cursor-not-allowed' : ''}`}>
                             <input 
                                 type="file" 
                                 multiple 
                                 onChange={handleUpload} 
                                 className="hidden" 
                                 accept="image/*,application/pdf"
-                                disabled={uploading || !user}
+                                disabled={uploading || connectionStatus !== 'connected'}
                             />
                             <div className="absolute inset-0 border-3 border-dashed border-blue-200/50 rounded-[2rem] flex flex-col items-center justify-center bg-white/40 backdrop-blur-sm hover:bg-white/60 transition-all duration-300">
                                 {uploading ? (
@@ -582,11 +665,11 @@
                                         <h3 className="text-xl font-semibold text-slate-800 mb-1">Sending...</h3>
                                         <p className="text-slate-500 text-sm">Please keep open</p>
                                     </div>
-                                ) : !user ? (
+                                ) : connectionStatus !== 'connected' ? (
                                     <div className="flex flex-col items-center">
                                         {authError ? (
                                             <>
-                                                <Icons.Zap className="w-10 h-10 text-red-400 mb-4" />
+                                                <Icons.AlertCircle className="w-10 h-10 text-red-400 mb-4" />
                                                 <p className="text-red-500 font-medium text-center">Connection failed</p>
                                                 <p className="text-slate-400 text-xs text-center mt-1 px-4">{authError}</p>
                                                 <button onClick={() => window.location.reload()} className="mt-4 px-4 py-2 bg-blue-50 text-blue-600 rounded-lg text-sm font-semibold hover:bg-blue-100">Retry</button>
@@ -615,7 +698,7 @@
                                 <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-4 px-2">Recently Sent ({files.length})</h3>
                                 <div className="space-y-3">
                                     {files.slice(0, 5).map(file => (
-                                        <div key={file.id} className="bg-white/80 backdrop-blur-sm p-4 rounded-xl flex items-center gap-4 shadow-sm border border-slate-100 animate-float" style={{animationDuration: '0.5s', animationName: 'slideIn'}}>
+                                        <div key={file.id} className="bg-white/80 backdrop-blur-sm p-4 rounded-xl flex items-center gap-4 shadow-sm border border-slate-100" style={{animation: 'slideIn 0.5s ease-out'}}>
                                             <div className="w-10 h-10 rounded-lg bg-blue-50 flex items-center justify-center flex-shrink-0 text-blue-500">
                                                 {file.type.includes('image') ? <Icons.Image className="w-5 h-5"/> : <Icons.File className="w-5 h-5"/>}
                                             </div>
@@ -638,6 +721,7 @@
             return (
                 <>
                     <Background />
+                    <ConnectionBanner />
                     {view === 'landing' && <LandingView />}
                     {view === 'session' && <DesktopSessionView />}
                     {view === 'mobile-upload' && <MobileUploadView />}
