@@ -2,488 +2,357 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>AeroDrop | Local Share</title>
-    
-    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Airdrops - Instant File Sharing</title>
+    <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-        tailwind.config = {
-            theme: {
-                extend: {
-                    fontFamily: {
-                        sans: ['"Plus Jakarta Sans"', 'sans-serif'],
-                    },
-                    colors: {
-                        brand: {
-                            50: '#f0f9ff',
-                            100: '#e0f2fe',
-                            400: '#38bdf8',
-                            500: '#0ea5e9',
-                            600: '#0284c7',
-                            900: '#0c4a6e',
-                        }
-                    },
-                    animation: {
-                        'blob': 'blob 7s infinite',
-                        'float': 'float 3s ease-in-out infinite',
-                    },
-                    keyframes: {
-                        blob: {
-                            '0%': { transform: 'translate(0px, 0px) scale(1)' },
-                            '33%': { transform: 'translate(30px, -50px) scale(1.1)' },
-                            '66%': { transform: 'translate(-20px, 20px) scale(0.9)' },
-                            '100%': { transform: 'translate(0px, 0px) scale(1)' },
-                        },
-                        float: {
-                            '0%, 100%': { transform: 'translateY(0)' },
-                            '50%': { transform: 'translateY(-10px)' },
-                        }
-                    }
-                }
-            }
-        }
-    </script>
-
-    <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
-    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <!-- React & Babel -->
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-    
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- QR Code Library -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
-
+    
     <style>
-        /* Glassmorphism Utilities */
-        .glass {
-            background: rgba(255, 255, 255, 0.7);
-            backdrop-filter: blur(12px);
-            -webkit-backdrop-filter: blur(12px);
-            border: 1px solid rgba(255, 255, 255, 0.5);
-        }
-        
-        /* Custom Scrollbar */
-        ::-webkit-scrollbar { width: 6px; }
-        ::-webkit-scrollbar-track { background: transparent; }
-        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
-        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
-
-        body {
-            background-color: #f8fafc;
-            overflow-x: hidden;
-        }
-
-        /* Print styles */
-        @media print {
-            .no-print { display: none !important; }
-            body { background: white; }
-            .print-container { padding: 0; }
-            .file-card { break-inside: avoid; border: 1px solid #ccc; box-shadow: none; margin-bottom: 20px; }
-        }
-
-        @keyframes slideIn {
-            from { opacity: 0; transform: translateY(20px); }
-            to { opacity: 1; transform: translateY(0); }
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
+        body { font-family: 'Inter', sans-serif; }
+        .glass { background: rgba(255, 255, 255, 0.03); backdrop-filter: blur(10px); }
+        .animate-float { animation: float 6s ease-in-out infinite; }
+        @keyframes float {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-20px); }
         }
     </style>
 </head>
 <body>
     <div id="root"></div>
 
+    <!-- Firebase SDKs -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-app.js";
+        import { getFirestore, doc, setDoc, onSnapshot, collection, addDoc, serverTimestamp, deleteDoc } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-firestore.js";
+        import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-auth.js";
+
+        window.FirebaseSDK = {
+            initializeApp, getFirestore, doc, setDoc, onSnapshot, collection, addDoc, serverTimestamp, deleteDoc, getAuth, signInAnonymously, onAuthStateChanged
+        };
+    </script>
+
     <script type="text/babel">
-        const { useState, useEffect, useMemo, useRef } = React;
-        const { createRoot } = ReactDOM;
+        const { useState, useEffect, useRef } = React;
 
-        // Auto-detect the API URL based on where the page is loaded from
-        const API_URL = `${window.location.protocol}//${window.location.hostname}:3000/api`;
-
-        // --- Icons (SVG Components) ---
-        const Icon = ({ path, className }) => (
-            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
-                {path}
-            </svg>
-        );
-
-        const Icons = {
-            Zap: (p) => <Icon {...p} path={<polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />} />,
-            Upload: (p) => <Icon {...p} path={<><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></>} />,
-            File: (p) => <Icon {...p} path={<><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/></>} />,
-            Image: (p) => <Icon {...p} path={<><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></>} />,
-            Trash: (p) => <Icon {...p} path={<><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></>} />,
-            Printer: (p) => <Icon {...p} path={<><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></>} />,
-            Copy: (p) => <Icon {...p} path={<><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></>} />,
-            Check: (p) => <Icon {...p} path={<polyline points="20 6 9 17 4 12"/>} />,
-            ArrowRight: (p) => <Icon {...p} path={<><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></>} />,
-            Wifi: (p) => <Icon {...p} path={<><path d="M5 12.55a11 11 0 0 1 14.08 0"/><path d="M1.42 9a16 16 0 0 1 21.16 0"/><path d="M8.53 16.11a6 6 0 0 1 6.95 0"/><line x1="12" y1="20" x2="12.01" y2="20"/></>} />,
-            Loading: (p) => <Icon {...p} path={<path d="M21 12a9 9 0 1 1-6.219-8.56" />} className={`${p.className} animate-spin`} />,
-            AlertCircle: (p) => <Icon {...p} path={<><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></>} />,
+        // Firebase Configuration
+        const firebaseConfig = {
+            apiKey: "", 
+            authDomain: "airdops-30748.firebaseapp.com",
+            projectId: "airdops-30748",
+            storageBucket: "airdops-30748.appspot.com",
+            messagingSenderId: "301012365212",
+            appId: "1:301012365212:web:6f3300f519fbb9b51b2259"
         };
 
-        // --- Utils ---
-        const formatSize = (bytes) => {
-            if (bytes === 0) return '0 B';
-            const k = 1024;
-            const sizes = ['B', 'KB', 'MB', 'GB'];
-            const i = Math.floor(Math.log(bytes) / Math.log(k));
-            return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
-        };
-
-        // --- Components ---
-
-        const Background = () => (
-            <div className="fixed inset-0 -z-10 overflow-hidden bg-slate-50">
-                <div className="absolute top-0 left-1/4 w-96 h-96 bg-blue-300 rounded-full mix-blend-multiply filter blur-3xl opacity-30 animate-blob"></div>
-                <div className="absolute top-0 right-1/4 w-96 h-96 bg-purple-300 rounded-full mix-blend-multiply filter blur-3xl opacity-30 animate-blob animation-delay-2000"></div>
-                <div className="absolute -bottom-32 left-1/3 w-96 h-96 bg-pink-300 rounded-full mix-blend-multiply filter blur-3xl opacity-30 animate-blob animation-delay-4000"></div>
-            </div>
-        );
-
-        const Button = ({ children, variant = 'primary', className, disabled, ...props }) => {
-            const baseStyle = "px-6 py-3 rounded-xl font-semibold transition-all duration-200 flex items-center justify-center gap-2 transform active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed";
-            const variants = {
-                primary: "bg-slate-900 text-white hover:bg-slate-800 shadow-lg shadow-slate-900/20",
-                secondary: "bg-white text-slate-700 hover:bg-slate-50 border border-slate-200 shadow-sm",
-                danger: "bg-red-50 text-red-600 hover:bg-red-100",
-                ghost: "text-slate-500 hover:text-slate-800 hover:bg-slate-100/50"
-            };
-            return (
-                <button className={`${baseStyle} ${variants[variant]} ${className}`} disabled={disabled} {...props}>
-                    {children}
-                </button>
-            );
-        };
-
-        // --- QR Code Component ---
-        const QRCode = ({ text }) => {
-            const qrRef = useRef(null);
-            
+        // Icon Component Helper
+        const Icon = ({ name, size = 24, className = "" }) => {
+            const iconRef = useRef(null);
             useEffect(() => {
-                if (qrRef.current && window.QRCode) {
-                    qrRef.current.innerHTML = '';
-                    new window.QRCode(qrRef.current, {
-                        text: text,
-                        width: 200,
-                        height: 200,
-                        colorDark: "#0f172a",
-                        colorLight: "#ffffff",
-                        correctLevel: window.QRCode.CorrectLevel.H
+                if (iconRef.current) {
+                    iconRef.current.innerHTML = lucide.createIcons({
+                        icons: { [name]: {} },
+                        attrs: { strokeWidth: 2, width: size, height: size }
                     });
                 }
-            }, [text]);
-
-            return <div ref={qrRef} className="p-4 bg-white rounded-2xl shadow-sm border border-slate-100 inline-block" />;
+            }, [name, size]);
+            return <span ref={iconRef} className={`inline-block ${className}`} />;
         };
 
-        // --- Main App Component ---
-        const App = () => {
-            const [view, setView] = useState('landing');
-            const [sessionId, setSessionId] = useState('');
-            const [files, setFiles] = useState([]);
-            const [searchId, setSearchId] = useState('');
-            const [copied, setCopied] = useState(false);
-            const [uploading, setUploading] = useState(false);
-            const [uploadProgress, setUploadProgress] = useState({ current: 0, total: 0 });
-
-            // 1. Handle URL Params
+        // QR Code Component
+        const QRCode = ({ value, size = 180 }) => {
+            const qrRef = useRef(null);
             useEffect(() => {
-                const params = new URLSearchParams(window.location.search);
-                const sessionParam = params.get('session');
-                const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-
-                if (sessionParam) {
-                    setSessionId(sessionParam);
-                    if (isMobile) {
-                        setView('mobile-upload');
-                    } else {
-                        setView('session');
-                    }
+                if (qrRef.current) {
+                    qrRef.current.innerHTML = "";
+                    new QRCodeJS(qrRef.current, {
+                        text: value,
+                        width: size,
+                        height: size,
+                        colorDark: "#2563eb",
+                        colorLight: "#f8fafc",
+                        correctLevel: QRCodeJS.CorrectLevel.H
+                    });
                 }
-            }, []);
+            }, [value, size]);
+            return <div ref={qrRef} className="p-2 bg-white rounded-xl shadow-inner overflow-hidden" />;
+        };
 
-            // 2. Real-time Polling (Replaces Firestore)
+        function App() {
+            const [user, setUser] = useState(null);
+            const [sessionId, setSessionId] = useState('');
+            const [view, setView] = useState('landing');
+            const [role, setRole] = useState(null);
+            const [files, setFiles] = useState([]);
+            const [isUploading, setIsUploading] = useState(false);
+            const [notification, setNotification] = useState(null);
+            const [db, setDb] = useState(null);
+            const [auth, setAuth] = useState(null);
+
+            const appId = "airdrops-30748";
+
             useEffect(() => {
-                if (!sessionId || view === 'landing') return;
+                if (!window.FirebaseSDK) return;
+                const { initializeApp, getAuth, getFirestore, signInAnonymously, onAuthStateChanged } = window.FirebaseSDK;
+                
+                const app = initializeApp(firebaseConfig);
+                const _auth = getAuth(app);
+                const _db = getFirestore(app);
+                setAuth(_auth);
+                setDb(_db);
 
-                const fetchFiles = async () => {
-                    try {
-                        const res = await fetch(`${API_URL}/files/${sessionId}`);
-                        const data = await res.json();
-                        setFiles(data);
-                    } catch (err) {
-                        console.error("Polling error:", err);
+                const init = async () => {
+                    await signInAnonymously(_auth);
+                    const params = new URLSearchParams(window.location.search);
+                    const sid = params.get('sid');
+                    if (sid) {
+                        setSessionId(sid);
+                        setRole('mobile');
+                        setView('app');
                     }
                 };
 
-                fetchFiles();
-                const interval = setInterval(fetchFiles, 2000); // Poll every 2 seconds
-                return () => clearInterval(interval);
-            }, [sessionId, view]);
+                const unsubscribe = onAuthStateChanged(_auth, (u) => setUser(u));
+                init();
+                return () => unsubscribe();
+            }, []);
 
-            const uploadUrl = useMemo(() => {
-                const base = window.location.href.split('?')[0];
-                return `${base}?session=${sessionId}`;
-            }, [sessionId]);
+            useEffect(() => {
+                if (!user || !sessionId || view !== 'app' || !db) return;
+                const { collection, onSnapshot } = window.FirebaseSDK;
 
-            const startSession = () => {
-                const newId = Math.random().toString(36).substring(2, 6).toUpperCase();
-                setSessionId(newId);
-                setFiles([]);
-                setView('session');
-            };
+                const filesRef = collection(db, 'artifacts', appId, 'public', 'data', `session_${sessionId}`);
+                const unsubscribe = onSnapshot(filesRef, (snapshot) => {
+                    const fetchedFiles = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                    const sorted = fetchedFiles.sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
+                    setFiles(sorted);
+                    cleanupOldFiles(sorted, sessionId);
+                });
+                return () => unsubscribe();
+            }, [user, sessionId, view, db]);
 
-            const joinSession = (e) => {
-                e.preventDefault();
-                if (searchId.length > 3) {
-                    setSessionId(searchId.toUpperCase());
-                    const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-                    setView(isMobile ? 'mobile-upload' : 'session');
-                }
-            };
-
-            const handleCopyLink = () => {
-                navigator.clipboard.writeText(uploadUrl);
-                setCopied(true);
-                setTimeout(() => setCopied(false), 2000);
-            };
-
-            const handleUpload = async (e) => {
-                const filesToUpload = Array.from(e.target.files);
-                if (filesToUpload.length === 0) return;
-
-                setUploading(true);
-                setUploadProgress({ current: 0, total: filesToUpload.length });
-
-                let completed = 0;
-
-                // Process files (No compression needed for local network, it's fast enough)
-                for (const file of filesToUpload) {
-                    const formData = new FormData();
-                    formData.append('file', file);
-                    formData.append('sessionId', sessionId);
-
-                    try {
-                        await fetch(`${API_URL}/upload`, {
-                            method: 'POST',
-                            body: formData
-                        });
-                        completed++;
-                        setUploadProgress({ current: completed, total: filesToUpload.length });
-                    } catch (err) {
-                        console.error(`Failed to upload ${file.name}`);
-                        alert(`Failed to upload ${file.name}`);
+            const cleanupOldFiles = async (currentFiles, sid) => {
+                const { deleteDoc, doc } = window.FirebaseSDK;
+                const now = Date.now();
+                const fiveMinutes = 5 * 60 * 1000;
+                for (const file of currentFiles) {
+                    if (file.createdAt) {
+                        if (now - file.createdAt.toMillis() > fiveMinutes) {
+                            await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', `session_${sid}`, file.id)).catch(() => {});
+                        }
                     }
                 }
-
-                setUploading(false);
-                setUploadProgress({ current: 0, total: 0 });
-                e.target.value = null;
             };
 
-            const printFile = (url) => {
-                const w = window.open(url);
-                if(w) {
-                    w.onload = () => w.print();
+            const startTransfer = () => {
+                const newSid = Math.random().toString(36).substring(2, 9);
+                setSessionId(newSid);
+                setRole('desktop');
+                setView('app');
+                window.history.pushState({}, '', `?sid=${newSid}`);
+            };
+
+            const handleFileUpload = async (e) => {
+                const file = e.target.files[0];
+                if (!file || !user) return;
+                if (file.size > 800000) {
+                    showNotification("File too large (Max 800KB)", "error");
+                    return;
                 }
+
+                setIsUploading(true);
+                const reader = new FileReader();
+                reader.onload = async (event) => {
+                    try {
+                        const { collection, addDoc, serverTimestamp } = window.FirebaseSDK;
+                        const filesRef = collection(db, 'artifacts', appId, 'public', 'data', `session_${sessionId}`);
+                        await addDoc(filesRef, {
+                            name: file.name,
+                            type: file.type,
+                            size: file.size,
+                            data: event.target.result,
+                            createdAt: serverTimestamp(),
+                            owner: user.uid
+                        });
+                        showNotification("Shared successfully!", "success");
+                    } catch (err) {
+                        showNotification("Upload failed", "error");
+                    } finally {
+                        setIsUploading(false);
+                    }
+                };
+                reader.readAsDataURL(file);
             };
 
-            // --- Views ---
+            const showNotification = (msg, type) => {
+                setNotification({ msg, type });
+                setTimeout(() => setNotification(null), 3000);
+            };
 
-            const LandingView = () => (
-                <div className="min-h-screen flex flex-col items-center justify-center p-6 text-center">
-                    <div className="max-w-3xl w-full animate-float">
-                        <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-blue-50 text-blue-600 text-sm font-semibold mb-8 border border-blue-100">
-                            <Icons.Zap className="w-4 h-4" /> v3.0 • Local Network
-                        </div>
-                        <h1 className="text-5xl md:text-7xl font-bold text-slate-900 tracking-tight mb-6">
-                            Transfer files <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-purple-600">instantly.</span>
-                        </h1>
-                        <p className="text-xl text-slate-500 mb-12 max-w-2xl mx-auto leading-relaxed">
-                            Super fast transfer over Wi-Fi. No internet required. Files save directly to your computer.
-                        </p>
-                        
-                        <div className="flex flex-col sm:flex-row items-center justify-center gap-4 w-full">
-                            <Button 
-                                onClick={startSession} 
-                                className="w-full sm:w-auto h-14 text-lg px-8"
-                            >
-                                Start Quick Session <Icons.ArrowRight className="w-5 h-5" />
-                            </Button>
-                            
-                            <form onSubmit={joinSession} className="relative w-full sm:w-auto">
-                                <input 
-                                    type="text" 
-                                    placeholder="Enter Session ID" 
-                                    className="w-full h-14 pl-5 pr-12 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all shadow-sm"
-                                    value={searchId}
-                                    onChange={e => setSearchId(e.target.value)}
-                                />
-                                <button 
-                                    type="submit" 
-                                    className="absolute right-2 top-2 bottom-2 aspect-square bg-slate-100 hover:bg-slate-200 rounded-lg flex items-center justify-center text-slate-600 transition-colors"
-                                >
-                                    <Icons.ArrowRight className="w-4 h-4" />
-                                </button>
-                            </form>
-                        </div>
-                    </div>
-                </div>
-            );
+            const downloadFile = (file) => {
+                const link = document.createElement('a');
+                link.href = file.data;
+                link.download = file.name;
+                link.click();
+            };
 
-            const DesktopSessionView = () => (
-                <div className="min-h-screen flex flex-col md:flex-row">
-                    <div className="w-full md:w-[400px] bg-white border-r border-slate-200 p-8 flex flex-col z-10 no-print">
-                        <div className="mb-8">
-                            <button onClick={() => setView('landing')} className="flex items-center gap-2 text-slate-500 hover:text-slate-900 transition-colors mb-6 font-medium">
-                                <Icons.Zap className="w-5 h-5 text-blue-600" /> AeroDrop Local
+            const printFile = (file) => {
+                const win = window.open("");
+                if (file.type.startsWith('image/')) {
+                    win.document.write(`<img src="${file.data}" style="max-width:100%;">`);
+                } else {
+                    win.document.write(`<iframe src="${file.data}" frameborder="0" style="width:100%; height:100%;"></iframe>`);
+                }
+                setTimeout(() => { win.print(); win.close(); }, 500);
+            };
+
+            const LandingPage = () => (
+                <div className="w-full min-h-screen bg-[#0a0c10] text-white overflow-hidden relative">
+                    <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-blue-600/20 blur-[120px] rounded-full" />
+                    <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-indigo-600/20 blur-[120px] rounded-full" />
+
+                    <nav className="relative z-10 max-w-7xl mx-auto px-6 py-8 flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                            <div className="bg-gradient-to-tr from-blue-600 to-indigo-500 p-2.5 rounded-2xl shadow-lg">
+                                <Icon name="Zap" className="text-white" />
+                            </div>
+                            <span className="text-2xl font-black italic">AIRDROPS</span>
+                        </div>
+                        <button onClick={startTransfer} className="bg-white/5 border border-white/10 px-5 py-2 rounded-full hover:bg-white/10 transition-all text-sm font-medium">
+                            Launch App
+                        </button>
+                    </nav>
+
+                    <div className="relative z-10 max-w-7xl mx-auto px-6 pt-20 pb-32 grid lg:grid-cols-2 gap-16 items-center">
+                        <div className="space-y-8 text-center lg:text-left">
+                            <div className="inline-flex items-center gap-2 bg-blue-500/10 border border-blue-500/20 px-4 py-1.5 rounded-full text-blue-400 text-sm font-bold">
+                                <span className="relative flex h-2 w-2"><span className="animate-ping absolute h-full w-full rounded-full bg-blue-400 opacity-75"></span><span className="relative rounded-full h-2 w-2 bg-blue-500"></span></span>
+                                INSTANT SYNC ACTIVE
+                            </div>
+                            <h1 className="text-6xl md:text-8xl font-black tracking-tighter leading-[0.9]">
+                                Transfer files <br /><span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-indigo-500">without cables.</span>
+                            </h1>
+                            <p className="text-xl text-slate-400 max-w-xl mx-auto lg:mx-0">Scan a QR code to link your phone and desktop instantly. Privacy guaranteed with auto-purge.</p>
+                            <button onClick={startTransfer} className="group bg-blue-600 hover:bg-blue-500 px-8 py-4 rounded-2xl font-bold text-lg flex items-center gap-2 transition-all shadow-xl shadow-blue-600/25 mx-auto lg:mx-0">
+                                Start Transfer Now <Icon name="ArrowRight" />
                             </button>
-                            <h2 className="text-2xl font-bold text-slate-900">Session Active</h2>
-                            <p className="text-slate-500 mt-1">Ready to receive files.</p>
                         </div>
 
-                        <div className="bg-slate-50 p-6 rounded-3xl border border-slate-100 text-center mb-8">
-                            <div className="mb-6 flex justify-center">
-                                <QRCode text={uploadUrl} />
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-4 pt-12">
+                                <FeatureCard icon="Smartphone" title="Mobile First" desc="Optimized for camera uploads." color="bg-blue-500/5" />
+                                <FeatureCard icon="ShieldCheck" title="Self-Destruct" desc="Vanish after 5 mins." color="bg-emerald-500/5" />
                             </div>
-                            <p className="text-sm font-medium text-slate-600 mb-4">Scan with phone to upload</p>
-                            
-                            <div className="flex items-center gap-2 bg-white p-2 rounded-lg border border-slate-200 shadow-sm">
-                                <div className="bg-slate-100 px-3 py-1.5 rounded-md text-sm font-mono font-bold text-slate-700 select-all">
-                                    {sessionId}
-                                </div>
-                                <button onClick={handleCopyLink} className="flex-1 flex items-center justify-center gap-2 text-xs font-semibold text-blue-600 hover:bg-blue-50 py-1.5 rounded-md transition-colors">
-                                    {copied ? <Icons.Check className="w-3 h-3" /> : <Icons.Copy className="w-3 h-3" />}
-                                    {copied ? 'Copied' : 'Copy Link'}
-                                </button>
+                            <div className="space-y-4">
+                                <FeatureCard icon="Zap" title="No Accounts" desc="Just scan and share." color="bg-amber-500/5" />
+                                <FeatureCard icon="Printer" title="Print Ready" desc="One-click desktop printing." color="bg-purple-500/5" />
                             </div>
-                        </div>
-
-                        <div className="mt-auto">
-                            <div className="flex items-center gap-3 text-sm text-green-700 bg-green-50 p-4 rounded-xl border border-green-100">
-                                <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
-                                Server Running on {window.location.hostname}
-                            </div>
-                        </div>
-                    </div>
-
-                    <div className="flex-1 p-8 md:p-12 overflow-y-auto">
-                        <div className="max-w-5xl mx-auto">
-                            <div className="flex justify-between items-end mb-8 no-print">
-                                <div>
-                                    <h2 className="text-3xl font-bold text-slate-900">Received Files</h2>
-                                    <p className="text-slate-500 mt-2">{files.length} items • {formatSize(files.reduce((acc, f) => acc + f.size, 0))}</p>
-                                </div>
-                            </div>
-
-                            {files.length === 0 ? (
-                                <div className="border-2 border-dashed border-slate-200 rounded-3xl h-96 flex flex-col items-center justify-center text-slate-400 bg-white/50">
-                                    <div className="w-20 h-20 bg-slate-100 rounded-full flex items-center justify-center mb-6">
-                                        <Icons.Wifi className="w-8 h-8 text-slate-300" />
-                                    </div>
-                                    <p className="text-lg font-medium">No files received yet</p>
-                                    <p className="text-sm mt-1">Uploads from mobile will appear here instantly</p>
-                                </div>
-                            ) : (
-                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                                    {files.map(file => (
-                                        <a key={file.id} href={file.url} target="_blank" className="file-card group bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden hover:shadow-xl transition-all duration-300 flex flex-col">
-                                            <div className="h-48 bg-slate-50 relative overflow-hidden flex items-center justify-center">
-                                                {file.type.includes('image') ? (
-                                                    <img src={file.url} alt={file.name} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" />
-                                                ) : (
-                                                    <Icons.File className="w-16 h-16 text-slate-300" />
-                                                )}
-                                                <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors flex items-center justify-center">
-                                                    <div className="opacity-0 group-hover:opacity-100 bg-white px-4 py-2 rounded-full text-sm font-bold shadow-lg transform translate-y-4 group-hover:translate-y-0 transition-all">
-                                                        Download
-                                                    </div>
-                                                </div>
-                                            </div>
-                                            <div className="p-5 flex-1 flex flex-col">
-                                                <div className="flex items-start justify-between mb-2">
-                                                    <div className="flex-1 min-w-0 mr-2">
-                                                        <h3 className="font-semibold text-slate-900 truncate" title={file.name}>{file.name}</h3>
-                                                        <p className="text-xs text-slate-500 mt-1 uppercase tracking-wider font-medium">{file.type.split('/')[1] || 'FILE'}</p>
-                                                    </div>
-                                                </div>
-                                                <div className="mt-auto pt-4 border-t border-slate-50 flex justify-between items-center text-xs text-slate-400">
-                                                    <span>{formatSize(file.size)}</span>
-                                                    <span>{new Date(file.createdAt).toLocaleTimeString()}</span>
-                                                </div>
-                                            </div>
-                                        </a>
-                                    ))}
-                                </div>
-                            )}
                         </div>
                     </div>
                 </div>
             );
 
-            const MobileUploadView = () => (
-                <div className="min-h-screen p-4 flex flex-col">
-                    <div className="bg-white/80 backdrop-blur-md rounded-2xl p-6 mb-6 shadow-sm border border-slate-100 flex items-center justify-between">
-                        <div>
-                            <h1 className="text-xl font-bold text-slate-900">AeroDrop</h1>
-                            <p className="text-slate-500 text-sm flex items-center gap-2 mt-1">
-                                <span className="w-2 h-2 rounded-full bg-green-500"></span>
-                                Connected: {sessionId}
-                            </p>
-                        </div>
-                        <button onClick={() => setView('landing')} className="text-slate-400 hover:text-slate-600 transition-colors text-sm font-medium">Exit</button>
-                    </div>
+            const FeatureCard = ({ icon, title, desc, color }) => (
+                <div className={`${color} border border-white/5 p-6 rounded-[2rem] backdrop-blur-sm group`}>
+                    <div className="bg-white/5 w-12 h-12 rounded-2xl flex items-center justify-center mb-4"><Icon name={icon} /></div>
+                    <h3 className="font-bold text-lg mb-1">{title}</h3>
+                    <p className="text-sm text-slate-500">{desc}</p>
+                </div>
+            );
 
-                    <div className="flex-1 flex flex-col">
-                        <label className={`flex-1 relative group cursor-pointer ${uploading ? 'opacity-75 cursor-not-allowed' : ''}`}>
-                            <input 
-                                type="file" 
-                                multiple 
-                                onChange={handleUpload} 
-                                className="hidden" 
-                                disabled={uploading}
-                            />
-                            <div className="absolute inset-0 border-3 border-dashed border-blue-200/50 rounded-[2rem] flex flex-col items-center justify-center bg-white/40 backdrop-blur-sm hover:bg-white/60 transition-all duration-300">
-                                {uploading ? (
-                                    <div className="flex flex-col items-center w-full px-8">
-                                        <Icons.Loading className="w-12 h-12 text-blue-500 mb-4" />
-                                        <h3 className="text-xl font-semibold text-slate-800 mb-2">Sending...</h3>
-                                        {uploadProgress.total > 0 && (
-                                            <>
-                                                <div className="w-full bg-slate-200 rounded-full h-2 mb-2">
-                                                    <div 
-                                                        className="bg-blue-500 h-2 rounded-full transition-all duration-300"
-                                                        style={{ width: `${(uploadProgress.current / uploadProgress.total) * 100}%` }}
-                                                    />
-                                                </div>
-                                                <p className="text-slate-500 text-sm">{uploadProgress.current} of {uploadProgress.total} files</p>
-                                            </>
-                                        )}
-                                        <p className="text-slate-400 text-xs mt-2">Please keep open</p>
+            const AppUI = () => {
+                const shareUrl = `${window.location.origin}${window.location.pathname}?sid=${sessionId}`;
+                return (
+                    <div className="min-h-screen bg-slate-50 text-slate-900 p-4 md:p-8 flex flex-col items-center">
+                        <header className="w-full max-w-5xl flex items-center justify-between mb-12">
+                            <div className="flex items-center gap-2 pointer-cursor" onClick={() => setView('landing')}>
+                                <div className="bg-blue-600 p-2 rounded-xl text-white"><Icon name="Zap" size={20} /></div>
+                                <h1 className="text-xl font-black italic tracking-tighter">AIRDROPS</h1>
+                            </div>
+                            <div className="flex items-center gap-3 bg-white px-4 py-2 rounded-2xl shadow-sm border border-slate-200">
+                                <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+                                <span className="text-xs font-bold text-slate-500 uppercase">Session: <span className="text-blue-600">{sessionId}</span></span>
+                                <button onClick={() => window.location.href = window.location.origin + window.location.pathname} className="ml-2 text-slate-300 hover:text-red-500"><Icon name="X" size={16} /></button>
+                            </div>
+                        </header>
+
+                        <main className="w-full max-w-5xl grid grid-cols-1 lg:grid-cols-12 gap-8">
+                            <div className="lg:col-span-4 space-y-6">
+                                <div className="bg-white p-8 rounded-[2.5rem] shadow-xl border border-slate-100 flex flex-col items-center">
+                                    <h2 className="text-lg font-bold mb-6 self-start flex gap-2"><Icon name="Monitor" className="text-blue-600" /> Connect Mobile</h2>
+                                    <QRCode value={shareUrl} />
+                                    <p className="text-sm text-slate-500 text-center mt-6">Scan with your phone to start uploading instantly.</p>
+                                </div>
+                                <div className="bg-gradient-to-br from-indigo-600 to-blue-700 p-8 rounded-[2.5rem] text-white shadow-xl">
+                                    <div className="flex items-center gap-3 mb-4"><Icon name="ShieldCheck" /><h2 className="text-lg font-bold">Secure Purge</h2></div>
+                                    <p className="text-blue-100/80 text-sm leading-relaxed">Files vanish automatically after 5 minutes of inactivity for your security.</p>
+                                </div>
+                            </div>
+
+                            <div className="lg:col-span-8 space-y-6">
+                                <div className="bg-white p-8 rounded-[2.5rem] shadow-xl border border-slate-100 min-h-[500px]">
+                                    <div className="flex items-center justify-between mb-6">
+                                        <h2 className="text-xl font-bold">{role === 'mobile' ? 'Upload Center' : 'Received Content'}</h2>
+                                        <span className="text-xs font-bold bg-slate-100 text-slate-400 px-3 py-1 rounded-full">{files.length} Files</span>
                                     </div>
-                                ) : (
-                                    <>
-                                        <div className="w-20 h-20 rounded-full bg-white shadow-xl shadow-blue-100 flex items-center justify-center mb-6 group-active:scale-95 transition-transform">
-                                            <Icons.Upload className="w-8 h-8 text-blue-600" />
+                                    <div className="relative border-3 border-dashed border-slate-100 rounded-[2rem] p-10 flex flex-col items-center justify-center hover:border-blue-400 hover:bg-blue-50/30 transition-all">
+                                        <input type="file" className="absolute inset-0 opacity-0 cursor-pointer" onChange={handleFileUpload} accept="image/*,application/pdf" disabled={isUploading}/>
+                                        <div className={`w-16 h-16 rounded-2xl flex items-center justify-center mb-4 ${isUploading ? 'bg-blue-100 animate-pulse' : 'bg-blue-50 text-blue-600'}`}>
+                                            <Icon name={isUploading ? "RefreshCw" : "Upload"} size={32} className={isUploading ? "animate-spin" : ""} />
                                         </div>
-                                        <h3 className="text-2xl font-bold text-slate-900 mb-2">Tap to Send</h3>
-                                        <p className="text-slate-500">Photos & Documents</p>
-                                    </>
-                                )}
+                                        <p className="font-bold text-lg text-slate-700">{isUploading ? "Uploading..." : "Select Files"}</p>
+                                    </div>
+
+                                    <div className="mt-8 space-y-3">
+                                        {files.map(file => (
+                                            <div key={file.id} className="bg-slate-50/50 p-4 rounded-2xl border border-slate-100 flex items-center justify-between group">
+                                                <div className="flex items-center gap-4">
+                                                    <div className="bg-white p-3 rounded-xl shadow-sm text-blue-600 group-hover:bg-blue-600 group-hover:text-white transition-all">
+                                                        <Icon name={file.type.includes('image') ? "Image" : "FileText"} size={20} />
+                                                    </div>
+                                                    <div>
+                                                        <h4 className="font-bold text-slate-800 truncate max-w-[150px]">{file.name}</h4>
+                                                        <p className="text-[10px] text-slate-400 uppercase">{(file.size / 1024).toFixed(1)} KB • Expiring Soon</p>
+                                                    </div>
+                                                </div>
+                                                <div className="flex gap-1">
+                                                    <button onClick={() => downloadFile(file)} className="p-2 text-slate-400 hover:text-blue-600"><Icon name="Download" size={20} /></button>
+                                                    <button onClick={() => printFile(file)} className="p-2 text-slate-400 hover:text-indigo-600"><Icon name="Printer" size={20} /></button>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
                             </div>
-                        </label>
+                        </main>
                     </div>
-                </div>
-            );
+                );
+            };
 
             return (
-                <>
-                    <Background />
-                    {view === 'landing' && <LandingView />}
-                    {view === 'session' && <DesktopSessionView />}
-                    {view === 'mobile-upload' && <MobileUploadView />}
-                </>
+                <div>
+                    {view === 'landing' ? <LandingPage /> : <AppUI />}
+                    {notification && (
+                        <div className="fixed bottom-8 left-1/2 -translate-x-1/2 px-6 py-4 rounded-3xl shadow-2xl bg-slate-900 text-white flex items-center gap-3 z-50 animate-bounce">
+                            <Icon name={notification.type === 'success' ? "CheckCircle" : "AlertCircle"} className={notification.type === 'success' ? "text-green-400" : "text-red-400"} />
+                            <span className="font-bold text-sm">{notification.msg}</span>
+                        </div>
+                    )}
+                </div>
             );
-        };
+        }
 
-        const root = createRoot(document.getElementById('root'));
+        const root = ReactDOM.createRoot(document.getElementById('root'));
         root.render(<App />);
     </script>
 </body>
 </html>
+
