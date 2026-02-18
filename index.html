@@ -2,223 +2,365 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>AeroDrop | Diagnostic Mode</title>
-    
-    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Airdrops | Instant Secure Sharing</title>
+    <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-        tailwind.config = {
-            theme: {
-                extend: {
-                    fontFamily: { sans: ['"Plus Jakarta Sans"', 'sans-serif'] },
-                    animation: { 'pulse-fast': 'pulse 1s cubic-bezier(0.4, 0, 0.6, 1) infinite' }
-                }
-            }
-        }
-    </script>
-
-    <script type="importmap">
-    {
-        "imports": {
-            "react": "https://esm.sh/react@18.2.0",
-            "react-dom/client": "https://esm.sh/react-dom@18.2.0/client",
-            "firebase/app": "https://www.gstatic.com/firebasejs/11.0.2/firebase-app.js",
-            "firebase/auth": "https://www.gstatic.com/firebasejs/11.0.2/firebase-auth.js",
-            "firebase/firestore": "https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js",
-            "firebase/storage": "https://www.gstatic.com/firebasejs/11.0.2/firebase-storage.js"
-        }
-    }
-    </script>
-
+    <!-- React & Babel for JSX support in single file -->
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
-
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    
     <style>
-        body { background-color: #f1f5f9; font-family: 'Plus Jakarta Sans', sans-serif; }
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
+        body { font-family: 'Plus Jakarta Sans', sans-serif; overflow-x: hidden; }
+        .glass { background: rgba(255, 255, 255, 0.03); backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.1); }
+        .glass-light { background: rgba(255, 255, 255, 0.7); backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.2); }
+        .gradient-text { background: linear-gradient(to right, #60a5fa, #818cf8); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        @keyframes pulse-slow { 0%, 100% { opacity: 0.3; } 50% { opacity: 0.6; } }
+        .animate-pulse-slow { animation: pulse-slow 4s ease-in-out infinite; }
     </style>
 </head>
-<body>
+<body class="bg-[#0a0c10]">
     <div id="root"></div>
 
-    <script type="text/babel" data-type="module">
-        import React, { useState, useEffect } from 'react';
-        import { createRoot } from 'react-dom/client';
-        import { initializeApp } from "firebase/app";
-        import { getAuth, signInAnonymously, onAuthStateChanged } from "firebase/auth";
-        import { getFirestore, collection, addDoc, onSnapshot, query, where, deleteDoc, doc, serverTimestamp } from "firebase/firestore";
-        import { getStorage, ref, uploadBytes, getDownloadURL, deleteObject } from "firebase/storage";
+    <!-- Firebase SDK Setup -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-app.js";
+        import { getFirestore, doc, onSnapshot, collection, addDoc, serverTimestamp, deleteDoc } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-firestore.js";
+        import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-auth.js";
 
-        // YOUR CONFIG
+        // Expose Firebase to the React script via a Bridge
+        window.FirebaseBridge = {
+            initializeApp, getFirestore, doc, onSnapshot, collection, addDoc, serverTimestamp, deleteDoc, getAuth, signInAnonymously, onAuthStateChanged
+        };
+    </script>
+
+    <script type="text/babel">
+        const { useState, useEffect, useRef } = React;
+
         const firebaseConfig = {
-            apiKey: "AIzaSyB23Xlx9wLi9ERHzw9sBYX2N6-XxckZiSc",
-            authDomain: "qr-share-a3c86.firebaseapp.com",
-            projectId: "qr-share-a3c86",
-            storageBucket: "qr-share-a3c86.firebasestorage.app",
-            messagingSenderId: "445728893026",
-            appId: "1:445728893026:web:833ea25e39c537ea88893b"
+            apiKey: "", // Key provided by your environment at runtime
+            authDomain: "airdops-30748.firebaseapp.com",
+            projectId: "airdops-30748",
+            storageBucket: "airdops-30748.appspot.com",
+            messagingSenderId: "301012365212",
+            appId: "1:301012365212:web:6f3300f519fbb9b51b2259"
         };
 
-        const app = initializeApp(firebaseConfig);
-        const auth = getAuth(app);
-        const db = getFirestore(app);
-        const storage = getStorage(app);
-        const appId = 'qr-share-default';
-
-        // --- Icons ---
-        const Icon = ({ path }) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">{path}</svg>;
-        const Icons = {
-            Upload: <Icon path={<><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></>} />,
-            Loading: <Icon path={<path d="M21 12a9 9 0 1 1-6.219-8.56" />} />,
-            Trash: <Icon path={<><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></>} />,
+        const Icon = ({ name, size = 24, className = "" }) => {
+            const iconRef = useRef(null);
+            useEffect(() => {
+                if (window.lucide && iconRef.current) {
+                    iconRef.current.innerHTML = lucide.createIcons({
+                        icons: { [name]: {} },
+                        attrs: { strokeWidth: 2.5, width: size, height: size }
+                    });
+                }
+            }, [name, size]);
+            return <span ref={iconRef} className={`inline-block leading-none ${className}`} />;
         };
 
-        const App = () => {
-            const [view, setView] = useState('landing');
+        function App() {
+            const [user, setUser] = useState(null);
+            const [view, setView] = useState('landing'); // landing | app
             const [sessionId, setSessionId] = useState('');
             const [files, setFiles] = useState([]);
-            const [uploading, setUploading] = useState(false);
-            const [status, setStatus] = useState('');
+            const [isUploading, setIsUploading] = useState(false);
+            const [notification, setNotification] = useState(null);
+            const [loading, setLoading] = useState(true);
 
-            // Auth Check
-            useEffect(() => {
-                setStatus('Connecting to Server...');
-                signInAnonymously(auth)
-                    .then(() => setStatus('Connected'))
-                    .catch(err => {
-                        console.error(err);
-                        alert("Auth Error: " + err.message + "\nCheck if Authentication > Anonymous is enabled in Firebase Console.");
-                        setStatus('Connection Failed');
-                    });
-            }, []);
+            const dbRef = useRef(null);
+            const appId = "airdops-30748";
 
-            // URL Params
             useEffect(() => {
-                const params = new URLSearchParams(window.location.search);
-                const s = params.get('session');
-                if (s) {
-                    setSessionId(s);
-                    setView('upload');
-                }
-            }, []);
-
-            // File Sync
-            useEffect(() => {
-                if (!sessionId) return;
-                const q = query(collection(db, 'artifacts', appId, 'public', 'data', 'files'), where('sessionId', '==', sessionId));
-                return onSnapshot(q, (snap) => {
-                    const f = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-                    setFiles(f.sort((a,b) => b.createdAt - a.createdAt));
-                }, (error) => {
-                    // Alert if Database permissions are wrong
-                    if (error.code === 'permission-denied') {
-                        alert("DATABASE ERROR: Permission Denied.\nPlease go to Firebase Console > Firestore Database > Rules and change 'false' to 'true'.");
+                const checkFirebase = setInterval(() => {
+                    if (window.FirebaseBridge) {
+                        clearInterval(checkFirebase);
+                        initApp();
                     }
+                }, 100);
+                return () => clearInterval(checkFirebase);
+            }, []);
+
+            const initApp = async () => {
+                const { initializeApp, getAuth, getFirestore, signInAnonymously, onAuthStateChanged } = window.FirebaseBridge;
+                const app = initializeApp(firebaseConfig);
+                const auth = getAuth(app);
+                dbRef.current = getFirestore(app);
+
+                onAuthStateChanged(auth, (u) => {
+                    setUser(u);
+                    setLoading(false);
                 });
-            }, [sessionId]);
+
+                await signInAnonymously(auth);
+
+                const params = new URLSearchParams(window.location.search);
+                const sid = params.get('sid');
+                if (sid) {
+                    setSessionId(sid);
+                    setView('app');
+                }
+            };
+
+            useEffect(() => {
+                if (!user || !sessionId || view !== 'app' || !dbRef.current) return;
+                const { collection, onSnapshot } = window.FirebaseBridge;
+
+                const filesRef = collection(dbRef.current, 'artifacts', appId, 'public', 'data', `session_${sessionId}`);
+                const unsubscribe = onSnapshot(filesRef, (snapshot) => {
+                    const fetchedFiles = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                    const sorted = fetchedFiles.sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
+                    setFiles(sorted);
+                    cleanupExpired(sorted);
+                }, (err) => console.error("Snapshot error:", err));
+
+                return () => unsubscribe();
+            }, [user, sessionId, view]);
+
+            const cleanupExpired = async (currentFiles) => {
+                const { deleteDoc, doc } = window.FirebaseBridge;
+                const now = Date.now();
+                const LIMIT = 5 * 60 * 1000;
+
+                for (const file of currentFiles) {
+                    if (file.createdAt) {
+                        if (now - file.createdAt.toMillis() > LIMIT) {
+                            await deleteDoc(doc(dbRef.current, 'artifacts', appId, 'public', 'data', `session_${sessionId}`, file.id)).catch(() => {});
+                        }
+                    }
+                }
+            };
 
             const startSession = () => {
-                const newId = Math.random().toString(36).substring(2, 8).toUpperCase();
-                setSessionId(newId);
-                setView('session');
+                const newSid = Math.random().toString(36).substring(2, 9);
+                setSessionId(newSid);
+                setView('app');
+                window.history.pushState({}, '', `?sid=${newSid}`);
             };
 
             const handleUpload = async (e) => {
                 const file = e.target.files[0];
-                if (!file) return;
-
-                setUploading(true);
-                setStatus('Starting upload...');
-
-                try {
-                    // Upload to Storage
-                    const storageRef = ref(storage, `uploads/${sessionId}/${Date.now()}_${file.name}`);
-                    
-                    setStatus('Uploading Bytes...');
-                    // We added a catch block directly to the uploadBytes
-                    const snapshot = await uploadBytes(storageRef, file).catch(error => {
-                        throw new Error(`STORAGE ERROR: ${error.code} - ${error.message}`);
-                    });
-
-                    setStatus('Getting URL...');
-                    const downloadURL = await getDownloadURL(snapshot.ref);
-
-                    setStatus('Saving to DB...');
-                    await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'files'), {
-                        sessionId: sessionId,
-                        name: file.name,
-                        size: file.size,
-                        type: file.type,
-                        url: downloadURL,
-                        storagePath: snapshot.ref.fullPath,
-                        createdAt: serverTimestamp()
-                    }).catch(error => {
-                         throw new Error(`DB WRITE ERROR: ${error.code} - ${error.message}`);
-                    });
-
-                    setStatus('Success!');
-                    setTimeout(() => setStatus('Connected'), 2000);
-
-                } catch (error) {
-                    console.error(error);
-                    // THIS IS THE IMPORTANT PART:
-                    alert("UPLOAD FAILED!\n\n" + error.message + "\n\nTip: Check Firebase Storage Rules.");
-                    setStatus('Failed');
-                } finally {
-                    setUploading(false);
-                    e.target.value = null;
+                if (!file || !user) return;
+                if (file.size > 900000) {
+                    showNotice("File too large (Max 900KB)", "error");
+                    return;
                 }
+
+                setIsUploading(true);
+                const reader = new FileReader();
+                reader.onload = async (event) => {
+                    try {
+                        const { collection, addDoc, serverTimestamp } = window.FirebaseBridge;
+                        const filesRef = collection(dbRef.current, 'artifacts', appId, 'public', 'data', `session_${sessionId}`);
+                        await addDoc(filesRef, {
+                            name: file.name,
+                            type: file.type,
+                            size: file.size,
+                            data: event.target.result,
+                            createdAt: serverTimestamp()
+                        });
+                        showNotice("File shared!", "success");
+                    } catch (err) {
+                        showNotice("Upload failed", "error");
+                    } finally {
+                        setIsUploading(false);
+                    }
+                };
+                reader.readAsDataURL(file);
             };
 
-            // Simple Views
-            if (view === 'landing') return (
-                <div className="h-screen flex flex-col items-center justify-center p-4">
-                    <h1 className="text-4xl font-bold mb-8">AeroDrop Diag</h1>
-                    <button onClick={startSession} className="bg-slate-900 text-white px-8 py-4 rounded-xl font-bold">Start Session</button>
-                    <div className="mt-4 text-sm text-slate-500">{status}</div>
+            const showNotice = (msg, type) => {
+                setNotification({ msg, type });
+                setTimeout(() => setNotification(null), 3000);
+            };
+
+            const downloadFile = (file) => {
+                const a = document.createElement('a');
+                a.href = file.data;
+                a.download = file.name;
+                a.click();
+            };
+
+            const printFile = (file) => {
+                const win = window.open("");
+                if (file.type.startsWith('image/')) {
+                    win.document.write(`<img src="${file.data}" style="max-width:100%;">`);
+                } else {
+                    win.document.write(`<iframe src="${file.data}" frameborder="0" style="width:100%; height:100%;"></iframe>`);
+                }
+                setTimeout(() => { win.print(); win.close(); }, 800);
+            };
+
+            if (loading) return (
+                <div className="min-h-screen flex items-center justify-center text-white">
+                    <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
                 </div>
             );
 
-            if (view === 'session') return (
-                <div className="h-screen p-6 flex flex-col items-center">
-                    <h2 className="text-2xl font-bold mb-4">Session: {sessionId}</h2>
-                    <div className="bg-white p-4 rounded-xl shadow mb-8"><div ref={el => el && new QRCode(el, {text: window.location.href.split('?')[0] + '?session=' + sessionId})} /></div>
-                    <div className="w-full max-w-md space-y-2">
-                        {files.map(f => (
-                            <div key={f.id} className="bg-white p-3 rounded shadow flex justify-between">
-                                <a href={f.url} target="_blank" className="text-blue-600 underline truncate w-48">{f.name}</a>
-                                <span className="text-xs text-slate-400">{(f.size/1024).toFixed(1)} KB</span>
+            const Landing = () => (
+                <div className="min-h-screen relative overflow-hidden bg-[#0a0c10] text-white">
+                    <div className="absolute top-[-20%] left-[-10%] w-[60%] h-[60%] bg-blue-600/10 blur-[140px] rounded-full animate-pulse-slow"></div>
+                    <div className="absolute bottom-[-20%] right-[-10%] w-[60%] h-[60%] bg-indigo-600/10 blur-[140px] rounded-full animate-pulse-slow"></div>
+
+                    <nav className="relative z-10 max-w-7xl mx-auto px-6 py-10 flex justify-between items-center">
+                        <div className="flex items-center gap-3">
+                            <div className="bg-gradient-to-tr from-blue-600 to-indigo-500 p-2 rounded-xl shadow-lg">
+                                <Icon name="Zap" className="text-white" />
                             </div>
-                        ))}
+                            <span className="text-2xl font-black italic tracking-tighter">AIRDROPS</span>
+                        </div>
+                        <button onClick={startSession} className="bg-white/5 border border-white/10 px-6 py-2.5 rounded-full hover:bg-white/10 transition-all font-bold text-sm">
+                            Launch Web App
+                        </button>
+                    </nav>
+
+                    <main className="relative z-10 max-w-7xl mx-auto px-6 pt-20 pb-40 grid lg:grid-cols-2 gap-20 items-center">
+                        <div className="text-center lg:text-left space-y-8">
+                            <div className="inline-flex items-center gap-2 bg-blue-500/10 border border-blue-500/20 px-4 py-1.5 rounded-full text-blue-400 text-xs font-black tracking-widest uppercase">
+                                <span className="w-2 h-2 rounded-full bg-blue-500 animate-pulse"></span>
+                                Secure Cloud Transfer
+                            </div>
+                            <h1 className="text-7xl lg:text-9xl font-black tracking-tighter leading-[0.85]">
+                                Drop files <br/><span className="gradient-text">instantly.</span>
+                            </h1>
+                            <p className="text-xl text-slate-400 max-w-lg mx-auto lg:mx-0 leading-relaxed">
+                                Share photos and PDFs from mobile to desktop by simply scanning a QR code. No accounts, no cables, 5-minute auto-purge.
+                            </p>
+                            <button onClick={startSession} className="group bg-blue-600 hover:bg-blue-500 px-10 py-5 rounded-[2rem] font-black text-xl flex items-center gap-3 transition-all shadow-2xl shadow-blue-600/40 mx-auto lg:mx-0">
+                                Get Started <Icon name="ArrowRight" className="group-hover:translate-x-1 transition-transform" />
+                            </button>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-4 pt-10">
+                                <Card icon="Smartphone" title="Scan & Link" desc="Mobile camera links instantly." color="bg-blue-500/5" />
+                                <Card icon="ShieldCheck" title="Auto-Purge" desc="Files vanish in 5 minutes." color="bg-emerald-500/5" />
+                            </div>
+                            <div className="space-y-4">
+                                <Card icon="Zap" title="Zero Lag" desc="Real-time Firebase sync." color="bg-amber-500/5" />
+                                <Card icon="Printer" title="One-Tap Print" desc="Desktop output ready." color="bg-purple-500/5" />
+                            </div>
+                        </div>
+                    </main>
+                </div>
+            );
+
+            const Card = ({ icon, title, desc, color }) => (
+                <div className={`${color} border border-white/5 p-8 rounded-[2.5rem] backdrop-blur-md group hover:border-white/20 transition-all`}>
+                    <div className="bg-white/5 w-14 h-14 rounded-2xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform"><Icon name={icon} /></div>
+                    <h3 className="font-bold text-xl mb-1">{title}</h3>
+                    <p className="text-sm text-slate-500 leading-snug">{desc}</p>
+                </div>
+            );
+
+            const AppUI = () => {
+                const shareUrl = `${window.location.origin}${window.location.pathname}?sid=${sessionId}`;
+                const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(shareUrl)}&color=2563eb&bgcolor=f8fafc`;
+
+                return (
+                    <div className="min-h-screen bg-slate-50 text-slate-900 p-4 md:p-10 flex flex-col items-center">
+                        <header className="w-full max-w-6xl flex justify-between items-center mb-10">
+                            <div className="flex items-center gap-2 cursor-pointer" onClick={() => setView('landing')}>
+                                <div className="bg-blue-600 p-2 rounded-xl text-white"><Icon name="Zap" size={20} /></div>
+                                <span className="text-xl font-black italic tracking-tighter">AIRDROPS</span>
+                            </div>
+                            <div className="bg-white px-5 py-2.5 rounded-full shadow-sm border border-slate-200 flex items-center gap-4">
+                                <span className="text-xs font-black text-slate-400 uppercase tracking-widest">Session ID</span>
+                                <span className="text-sm font-bold text-blue-600">{sessionId}</span>
+                                <button onClick={() => window.location.href = window.location.origin + window.location.pathname} className="text-slate-300 hover:text-red-500 transition-colors">
+                                    <Icon name="X" size={16} />
+                                </button>
+                            </div>
+                        </header>
+
+                        <main className="w-full max-w-6xl grid grid-cols-1 lg:grid-cols-12 gap-10">
+                            <div className="lg:col-span-4 space-y-6">
+                                <div className="bg-white p-10 rounded-[3rem] shadow-xl border border-slate-100 flex flex-col items-center">
+                                    <h2 className="text-lg font-bold mb-8 flex gap-2 self-start"><Icon name="Monitor" className="text-blue-600" /> Desktop Receiver</h2>
+                                    <div className="p-2 bg-slate-50 rounded-[2.5rem] border border-slate-100 shadow-inner">
+                                        <img src={qrUrl} alt="QR" className="w-52 h-52 rounded-3xl" />
+                                    </div>
+                                    <p className="text-sm text-slate-500 text-center mt-8 font-medium">Scan this code with your phone camera to start uploading.</p>
+                                </div>
+                                <div className="bg-[#0a0c10] p-10 rounded-[3rem] text-white shadow-xl">
+                                    <div className="flex items-center gap-3 mb-4"><Icon name="ShieldCheck" className="text-blue-400" /><h3 className="font-bold text-lg">Secure Session</h3></div>
+                                    <p className="text-slate-400 text-sm leading-relaxed mb-6">All data is encrypted and purged 5 minutes after upload. No traces are left on our servers.</p>
+                                    <div className="flex items-center gap-2 text-[10px] font-black bg-blue-500/20 text-blue-400 px-3 py-1 rounded-full w-fit tracking-widest uppercase">
+                                        <Icon name="Clock" size={12} /> Auto-Delete Active
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="lg:col-span-8 space-y-6">
+                                <div className="bg-white p-10 rounded-[3rem] shadow-xl border border-slate-100 min-h-[600px] flex flex-col">
+                                    <div className="flex justify-between items-center mb-10">
+                                        <h2 className="text-2xl font-black italic">Content Cloud</h2>
+                                        <span className="text-xs font-black bg-slate-100 text-slate-500 px-4 py-1.5 rounded-full uppercase tracking-widest">{files.length} Shared</span>
+                                    </div>
+
+                                    <div className="relative group mb-10">
+                                        <input type="file" className="absolute inset-0 opacity-0 cursor-pointer z-20" onChange={handleUpload} accept="image/*,application/pdf" disabled={isUploading}/>
+                                        <div className={`border-4 border-dashed rounded-[2.5rem] p-12 flex flex-col items-center justify-center transition-all ${isUploading ? 'bg-slate-50 border-slate-200' : 'border-slate-100 hover:border-blue-400 hover:bg-blue-50/50'}`}>
+                                            <div className={`w-20 h-20 rounded-[1.5rem] flex items-center justify-center mb-4 ${isUploading ? 'bg-blue-100 animate-pulse' : 'bg-blue-50 text-blue-600 group-hover:scale-110'}`}>
+                                                <Icon name={isUploading ? "Loader" : "Upload"} size={40} className={isUploading ? "animate-spin" : ""} />
+                                            </div>
+                                            <p className="font-bold text-xl text-slate-700">{isUploading ? "Uploading Securely..." : "Drop or Tap to Share"}</p>
+                                            <p className="text-sm text-slate-400 font-medium mt-2">PDFs or Photos up to 900KB</p>
+                                        </div>
+                                    </div>
+
+                                    <div className="space-y-4">
+                                        {files.length === 0 ? (
+                                            <div className="flex flex-col items-center justify-center py-20 text-slate-300">
+                                                <Icon name="File" size={48} strokeWidth={1} className="mb-4" />
+                                                <p className="font-bold">Waiting for shared content...</p>
+                                            </div>
+                                        ) : (
+                                            files.map(file => (
+                                                <div key={file.id} className="bg-slate-50/50 p-5 rounded-[2rem] border border-slate-100 flex items-center justify-between group hover:bg-white hover:shadow-lg transition-all">
+                                                    <div className="flex items-center gap-5 min-w-0">
+                                                        <div className="bg-white p-4 rounded-2xl shadow-sm text-blue-600 group-hover:bg-blue-600 group-hover:text-white transition-all">
+                                                            <Icon name={file.type.includes('image') ? "Image" : "FileText"} size={24} />
+                                                        </div>
+                                                        <div className="min-w-0">
+                                                            <h4 className="font-black text-slate-800 truncate pr-4 text-lg leading-none mb-1">{file.name}</h4>
+                                                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{(file.size/1024).toFixed(1)} KB • EXPIRING SOON</p>
+                                                        </div>
+                                                    </div>
+                                                    <div className="flex gap-2">
+                                                        <button onClick={() => downloadFile(file)} className="p-3 bg-white text-slate-400 hover:text-blue-600 rounded-2xl border border-slate-50 hover:shadow-md transition-all"><Icon name="Download" size={20} /></button>
+                                                        <button onClick={() => printFile(file)} className="p-3 bg-white text-slate-400 hover:text-indigo-600 rounded-2xl border border-slate-50 hover:shadow-md transition-all"><Icon name="Printer" size={20} /></button>
+                                                    </div>
+                                                </div>
+                                            ))
+                                        )}
+                                    </div>
+                                </div>
+                            </div>
+                        </main>
                     </div>
+                );
+            };
+
+            return (
+                <div>
+                    {view === 'landing' ? <Landing /> : <AppUI />}
+                    {notification && (
+                        <div className={`fixed bottom-10 left-1/2 -translate-x-1/2 px-8 py-5 rounded-[2.5rem] shadow-2xl flex items-center gap-4 z-50 animate-bounce ${notification.type === 'success' ? 'bg-[#0a0c10] text-white' : 'bg-red-600 text-white'}`}>
+                            <Icon name={notification.type === 'success' ? "CheckCircle" : "AlertCircle"} className={notification.type === 'success' ? "text-green-400" : "text-white"} size={20} />
+                            <span className="font-black text-sm tracking-tight">{notification.msg}</span>
+                        </div>
+                    )}
                 </div>
             );
+        }
 
-            if (view === 'upload') return (
-                <div className="h-screen p-6 flex flex-col">
-                    <div className="mb-8 font-bold text-center">Connected to: {sessionId}</div>
-                    
-                    <label className={`flex-1 bg-white border-4 border-dashed border-slate-200 rounded-3xl flex flex-col items-center justify-center transition-all ${uploading ? 'opacity-50' : 'active:scale-95'}`}>
-                        <input type="file" onChange={handleUpload} className="hidden" disabled={uploading} />
-                        {uploading ? (
-                            <>
-                                <div className="animate-spin mb-4">{Icons.Loading}</div>
-                                <div className="font-bold text-lg">{status}</div>
-                            </>
-                        ) : (
-                            <>
-                                <div className="text-blue-500 mb-4">{Icons.Upload}</div>
-                                <div className="font-bold text-xl">Tap to Upload</div>
-                                <div className="text-xs text-slate-400 mt-2">Diagnostic Mode</div>
-                            </>
-                        )}
-                    </label>
-                    <div className="mt-4 text-center text-xs text-red-500 font-mono break-all">{status.includes('Failed') ? 'Check Alert Box for Error' : ''}</div>
-                </div>
-            );
-        };
-
-        createRoot(document.getElementById('root')).render(<App />);
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
     </script>
 </body>
 </html>
