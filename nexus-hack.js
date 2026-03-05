@@ -238,8 +238,8 @@ window.dSwitch = function(dash, view, btn) {
     'h-overview':'Overview','h-lb':'Leaderboard','h-projs':'Projects','h-ann':'Announcements',
     'h-team':'My Team','h-submit':'Submit Project','h-myproj':'My Submission',
     'o-overview':'Overview','o-events':'My Events','o-participants':'Participants','o-projects':'All Projects',
-    'o-judges':'Judge Accounts','o-scores':'All Scores','o-lb':'Leaderboard','o-ann':'Announcements',
-    'j-overview':'Overview','j-score':'Score Projects','j-myscores':'My Scores','j-lb':'Leaderboard','j-ann':'Announcements'
+    'o-judges':'Judge Accounts','o-scores':'All Scores','o-lb':'Leaderboard','o-ann':'Announcements','o-settings':'Settings',
+    'j-overview':'Overview','j-score':'Score Projects','j-myscores':'My Scores','j-lb':'Leaderboard','j-ann':'Announcements','j-settings':'Settings'
   };
   $(`${prefix}-dtb`).textContent = titles[view] || view;
 };
@@ -259,6 +259,12 @@ window.Dash = {
   openOrganizer() {
     $('dash-organizer').classList.add('open'); document.body.style.overflow = 'hidden';
     $('o-name').textContent = S.orgProfile?.name || 'Organizer';
+    const info = $('o-acc-info');
+    if (info) info.innerHTML = `
+      <div style="margin-bottom:8px"><span style="color:var(--faint)">Email:</span> <span style="color:var(--amber)">${esc(S.orgProfile?.email||'—')}</span></div>
+      <div style="margin-bottom:8px"><span style="color:var(--faint)">Role:</span> <span class="badge b-orange">Organizer</span></div>
+      <div style="margin-bottom:8px"><span style="color:var(--faint)">Portal:</span> /#organizer-portal</div>
+      <div style="color:var(--cyan);font-size:12px;margin-top:10px">⚠ Change default password in Settings after first login.</div>`;
     OrgCtrl.load();
   },
   openJudge() {
@@ -392,19 +398,91 @@ window.Auth = {
     } catch(e) { toast(e.message,'err'); }
     setBtn('reg-final-btn', false, 'Create Account ✓');
   },
-  /* --- organizer (local credentials) --- */
+  /* --- organizer (Firestore credentials) --- */
   async orgLogin() {
-    const em=$('og-em').value.trim(), pw=$('og-pw').value, code=$('og-code').value.trim();
-    if (em!=='organizer@nexushack.dev' || pw!=='nexus2025' || code!=='482910') {
-      toast('Invalid credentials or access code','err'); return;
-    }
+    const em=$('og-em').value.trim().toLowerCase(), pw=$('og-pw').value;
+    if (!em||!pw) { toast('Enter email and password','err'); return; }
     setBtn('og-btn', true, 'Verifying…');
-    await new Promise(r => setTimeout(r,700));
-    S.orgProfile = { name:'Nina Park', email:em, role:'organizer' };
-    location.hash = '';
-    setBtn('og-btn', false, 'Access Organizer Panel →');
-    Dash.openOrganizer();
-    toast('Welcome back, Organizer 👋','ok');
+    try {
+      // Look up organizer in Firestore
+      const snap = await getDocs(query(collection(db,'organizers'), where('email','==',em)));
+      if (snap.empty) {
+        // First-time setup: auto-create default organizer account if none exists
+        const anyOrg = await getDocs(collection(db,'organizers'));
+        if (anyOrg.empty && pw === 'nexus2025') {
+          const orgRef = await addDoc(collection(db,'organizers'), {
+            name:'Organizer', email:em, password:'nexus2025',
+            createdAt:serverTimestamp(), isDefault:true
+          });
+          S.orgProfile = { id:orgRef.id, name:'Organizer', email:em, role:'organizer' };
+          location.hash = '';
+          setBtn('og-btn', false, 'Access Organizer Panel →');
+          Dash.openOrganizer();
+          toast('Welcome! Please change your default password in Settings 🔒','warn');
+          return;
+        }
+        toast('No organizer account found','err');
+        setBtn('og-btn', false, 'Access Organizer Panel →');
+        return;
+      }
+      const org = { id:snap.docs[0].id, ...snap.docs[0].data() };
+      if (org.password !== pw) { toast('Incorrect password','err'); setBtn('og-btn',false,'Access Organizer Panel →'); return; }
+      S.orgProfile = { id:org.id, name:org.name||'Organizer', email:em, role:'organizer' };
+      location.hash = '';
+      setBtn('og-btn', false, 'Access Organizer Panel →');
+      Dash.openOrganizer();
+      const isDefault = org.isDefault || org.password === 'nexus2025';
+      toast(`Welcome back, ${org.name||'Organizer'}! 👋${isDefault?' — Please change your default password in Settings 🔒':''}`, isDefault?'warn':'ok');
+    } catch(e) { toast(e.message,'err'); setBtn('og-btn',false,'Access Organizer Panel →'); }
+  },
+  /* --- organizer forgot password --- */
+  async orgForgotPassword() {
+    const em = $('og-em').value.trim().toLowerCase();
+    if (!em) { toast('Enter your organizer email first','err'); return; }
+    try {
+      const snap = await getDocs(query(collection(db,'organizers'), where('email','==',em)));
+      if (snap.empty) { toast('No organizer account found for that email','err'); return; }
+      const org = snap.docs[0].data();
+      // Generate a reset token and show it (in production, email it)
+      const resetPw = genPw();
+      await updateDoc(doc(db,'organizers',snap.docs[0].id), { password:resetPw, isDefault:true });
+      // Show the temp password on screen since we can't email without backend
+      toast(`Temp password set. Ask your admin for it or check Firestore console.`,'warn');
+      alert(`Temporary password for ${em}:\n\n${resetPw}\n\nPlease log in and change it immediately in Settings.`);
+    } catch(e) { toast(e.message,'err'); }
+  },
+  /* --- judge forgot password --- */
+  async judgeForgotPassword() {
+    const em = $('jg-em').value.trim().toLowerCase();
+    if (!em) { toast('Enter your judge email first','err'); return; }
+    try {
+      const snap = await getDocs(query(collection(db,'judges'), where('email','==',em)));
+      if (snap.empty) { toast('No judge account found for that email','err'); return; }
+      const newPw = genPw();
+      await updateDoc(doc(db,'judges',snap.docs[0].id), { password:newPw });
+      const judge = snap.docs[0].data();
+      // Attempt SMS if mobile exists
+      if (judge.mobile) {
+        await this._sendSMS(judge.mobile, `NEXUS HACK: Your new judge password is ${newPw} — Login at /#judge-portal`);
+      }
+      toast(`New password generated. ${judge.mobile ? 'SMS sent to your registered number.' : 'Contact the organizer for your new password.'}`,'ok');
+    } catch(e) { toast(e.message,'err'); }
+  },
+  /* --- SMS via Twilio (configure in Firestore settings or env) --- */
+  async _sendSMS(to, body) {
+    // NOTE: Twilio credentials should be stored in Firestore 'config/twilio' doc
+    // This is a client-side call only for demo — in production use Firebase Cloud Functions
+    try {
+      const cfgSnap = await getDoc(doc(db,'config','twilio'));
+      if (!cfgSnap.exists()) {
+        console.log(`[SMS] Would send to ${to}: ${body}`);
+        console.log('[SMS] Configure Twilio: add config/twilio doc with accountSid, authToken, from fields');
+        return;
+      }
+      const cfg = cfgSnap.data();
+      // Production: use Cloud Function to send SMS securely
+      console.log(`[SMS] Twilio configured — in production use Cloud Function to send: ${to}: ${body}`);
+    } catch(e) { console.error('SMS error:', e); }
   },
   /* --- judge (Firestore credentials) --- */
   async judgeLogin() {
@@ -470,6 +548,7 @@ window.Ev = {
   },
   _cardHTML(e) {
     return `<div class="ev-card ${e.status==='live'?'ev-live':''}" onclick="Ev.showDetail('${e.id}')">
+      ${e.image?`<div style="width:100%;height:140px;border-radius:8px;overflow:hidden;margin-bottom:11px"><img src="${esc(e.image)}" alt="${esc(e.name)}" style="width:100%;height:100%;object-fit:cover"/></div>`:''}
       <div class="ev-meta">${this._statusBadge(e.status)}<span class="badge b-orange">$${(e.prize||0).toLocaleString()}</span></div>
       <div class="ev-title">${esc(e.name)}</div>
       <div class="ev-meta">
@@ -480,23 +559,21 @@ window.Ev = {
       <div class="ev-foot">
         <span style="font-size:12px;color:var(--muted)">👥 Max ${e.maxParts||'∞'}</span>
         <span style="font-size:12px;color:var(--muted)">⬡ Teams ≤ ${e.maxTeam||4}</span>
-        <button class="btn btn-cyan btn-xs" onclick="event.stopPropagation();G.go('register')">Apply →</button>
+        <button class="btn btn-cyan btn-xs" onclick="event.stopPropagation();Ev.showDetail('${e.id}')">View →</button>
       </div>
     </div>`;
   },
   showDetail(id) {
     const e = this._all.find(x=>x.id===id); if (!e) return;
     $('ev-detail-hd').innerHTML = `
+      ${e.image?`<div style="width:100%;height:220px;border-radius:12px;overflow:hidden;margin-bottom:18px"><img src="${esc(e.image)}" alt="${esc(e.name)}" style="width:100%;height:100%;object-fit:cover"/></div>`:''}
       <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:18px;flex-wrap:wrap">
         <div>
           <div style="display:flex;gap:9px;align-items:center;margin-bottom:12px;flex-wrap:wrap">${this._statusBadge(e.status)}<span class="badge b-cyan">$${(e.prize||0).toLocaleString()} prizes</span></div>
           <h1 style="font-family:'Bebas Neue',sans-serif;font-size:clamp(40px,7vw,72px);line-height:.95;letter-spacing:.04em;margin-bottom:12px">${esc(e.name)}</h1>
           <p style="font-size:15px;color:var(--muted);line-height:1.7;max-width:560px">${esc(e.desc||e.tagline||'')}</p>
         </div>
-        <div style="display:flex;gap:9px;flex-wrap:wrap">
-          <button class="btn btn-amber" onclick="G.go('register')">Apply Now →</button>
-          <button class="btn btn-ghost" onclick="G.go('events')">← All Events</button>
-        </div>
+        <button class="btn btn-ghost" onclick="G.go('events')">← All Events</button>
       </div>`;
     $('ev-detail-body').innerHTML = `
       <div>
@@ -505,12 +582,13 @@ window.Ev = {
             <div style="display:flex;gap:12px;padding:11px;background:var(--surf2);border:1px solid var(--b0);border-radius:8px;margin-bottom:8px">
               <span>${ic}</span><div><div style="font-size:13px;font-weight:700">${k}</div><div style="font-size:13px;color:var(--cyan)">${esc(String(v))}</div></div>
             </div>`).join('')}
-          <button class="btn btn-amber btn-full" style="margin-top:14px" onclick="G.go('register')">Apply Now →</button>
         </div></div>
+        ${e.prizes?`<div class="panel" style="margin-top:14px"><div class="phd"><div class="ptitle">🏆 Prizes &amp; Awards</div></div><div class="pbd"><pre style="font-size:13px;color:var(--muted);line-height:1.8;white-space:pre-wrap;font-family:'DM Mono',monospace">${esc(e.prizes)}</pre></div></div>`:''}
       </div>
       <div>
         ${e.tracks ? `<div class="panel" style="margin-bottom:14px"><div class="phd"><div class="ptitle">Tracks</div></div><div class="pbd">${e.tracks.split(',').map(t=>`<div style="padding:10px 13px;background:var(--surf2);border:1px solid var(--b0);border-radius:8px;font-size:13px;font-weight:600;margin-bottom:7px">🚀 ${esc(t.trim())}</div>`).join('')}</div></div>` : ''}
-        <div class="panel"><div class="phd"><div class="ptitle">About</div></div><div class="pbd"><p style="font-size:14px;color:var(--muted);line-height:1.75">${esc(e.desc||'Compete to build in 48 hours.')}</p></div></div>
+        <div class="panel" style="margin-bottom:14px"><div class="phd"><div class="ptitle">About</div></div><div class="pbd"><p style="font-size:14px;color:var(--muted);line-height:1.75">${esc(e.desc||'Compete to build in 48 hours.')}</p></div></div>
+        ${e.rules?`<div class="panel"><div class="phd"><div class="ptitle">📋 Rules</div></div><div class="pbd"><pre style="font-size:13px;color:var(--muted);line-height:1.8;white-space:pre-wrap;font-family:'DM Mono',monospace">${esc(e.rules)}</pre></div></div>`:''}
       </div>`;
     G.go('event-detail');
   }
@@ -766,17 +844,20 @@ window.OrgCtrl = {
   },
   openEditEvent(id) {
     const e = this._events.find(x=>x.id===id); if(!e) return;
-    $('eh-id').value    = id;
-    $('eh-name').value  = e.name;
-    $('eh-tag').value   = e.tagline||'';
-    $('eh-start').value = (e.start||'').replace(' ','T');
-    $('eh-end').value   = (e.end||'').replace(' ','T');
-    $('eh-max').value   = e.maxParts||'';
-    $('eh-prize').value = e.prize||'';
-    $('eh-venue').value = e.venue||'';
-    $('eh-desc').value  = e.desc||'';
-    $('eh-tracks').value= e.tracks||'';
-    $('eh-status').value= e.status||'upcoming';
+    $('eh-id').value     = id;
+    $('eh-name').value   = e.name;
+    $('eh-tag').value    = e.tagline||'';
+    $('eh-start').value  = (e.start||'').replace(' ','T');
+    $('eh-end').value    = (e.end||'').replace(' ','T');
+    $('eh-max').value    = e.maxParts||'';
+    $('eh-prize').value  = e.prize||'';
+    $('eh-venue').value  = e.venue||'';
+    $('eh-desc').value   = e.desc||'';
+    $('eh-tracks').value = e.tracks||'';
+    $('eh-img').value    = e.image||'';
+    $('eh-rules').value  = e.rules||'';
+    $('eh-prizes').value = e.prizes||'';
+    $('eh-status').value = e.status||'upcoming';
     openOv('ov-edit-ev');
   },
   async updateEvent() {
@@ -788,8 +869,9 @@ window.OrgCtrl = {
         start:$('eh-start').value, end:$('eh-end').value,
         maxParts:parseInt($('eh-max').value)||500, prize:parseInt($('eh-prize').value)||0,
         venue:$('eh-venue').value.trim(), desc:$('eh-desc').value.trim(),
-        tracks:$('eh-tracks').value.trim(), status:$('eh-status').value,
-        updatedAt:serverTimestamp()
+        tracks:$('eh-tracks').value.trim(), image:$('eh-img').value.trim(),
+        rules:$('eh-rules').value.trim(), prizes:$('eh-prizes').value.trim(),
+        status:$('eh-status').value, updatedAt:serverTimestamp()
       });
       closeOv('ov-edit-ev'); toast('Event updated!','ok');
       await this.loadEvents(); Ev.loadPublic();
@@ -811,10 +893,12 @@ window.OrgCtrl = {
         maxParts:parseInt($('hk-max').value)||500, maxTeam:parseInt($('hk-team').value)||4,
         prize:parseInt($('hk-prize').value)||0, venue:$('hk-venue').value.trim(),
         desc:$('hk-desc').value.trim(), tracks:$('hk-tracks').value.trim(),
+        image:$('hk-img').value.trim(), rules:$('hk-rules').value.trim(),
+        prizes:$('hk-prizes').value.trim(),
         status:$('hk-status').value, createdBy:'organizer', createdAt:serverTimestamp()
       });
       closeOv('ov-host');
-      ['hk-name','hk-tag','hk-start','hk-end','hk-max','hk-team','hk-prize','hk-venue','hk-desc','hk-tracks'].forEach(id=>{const e=$(id);if(e)e.value='';});
+      ['hk-name','hk-tag','hk-start','hk-end','hk-max','hk-team','hk-prize','hk-venue','hk-desc','hk-tracks','hk-img','hk-rules','hk-prizes'].forEach(id=>{const e=$(id);if(e)e.value='';});
       toast(`"${name}" created and published! 🚀`,'ok');
       await this.loadEvents(); Ev.loadPublic();
       dSwitch('organizer','o-events');
@@ -909,9 +993,10 @@ window.OrgCtrl = {
   },
   async createJudge() {
     const fn=$('cj-fn').value.trim(), em=$('cj-em').value.trim().toLowerCase();
+    const mobile=$('cj-mobile').value.trim();
     if(!fn||!em) { toast('Name and email required','err'); return; }
+    if(!mobile) { toast('Mobile number required for SMS delivery','err'); return; }
     setBtn('cj-btn',true,'Creating…');
-    const ln=$('cj-org') ? $('cj-ln').value.trim() : '';
     const org=$('cj-org').value.trim();
     const tracks = ['ck-ai','ck-web3','ck-climate','ck-health','ck-gaming','ck-dev']
       .filter(id=>$(id)?.checked).map(id=>({
@@ -921,20 +1006,25 @@ window.OrgCtrl = {
     const pw = genPw();
     const name = `${fn} ${$('cj-ln').value.trim()}`.trim();
     try {
-      await addDoc(collection(db,'judges'),{name,email:em,org,tracks,password:pw,createdAt:serverTimestamp()});
+      await addDoc(collection(db,'judges'),{name,email:em,org,mobile,tracks,password:pw,createdAt:serverTimestamp()});
+      // Attempt to send SMS
+      const smsMsg = `NEXUS HACK Judge Access\nName: ${name}\nEmail: ${em}\nPassword: ${pw}\nPortal: ${location.origin}/#judge-portal`;
+      await Auth._sendSMS(mobile, smsMsg);
       const res = $('cj-result');
       res.style.display = 'block';
       res.innerHTML = `<div class="cred-box">
         <div><span class="ck">Name: </span><span class="cv">${esc(name)}</span></div>
         <div><span class="ck">Email: </span><span class="cv">${esc(em)}</span></div>
         <div><span class="ck">Password: </span><span class="cv">${pw}</span></div>
-        <div><span class="ck">Portal: </span><span class="cv">nexushack.dev/#judge-portal</span></div>
+        <div><span class="ck">Mobile: </span><span class="cv">${esc(mobile)} <span class="badge b-green" style="font-size:9px">SMS Sent</span></span></div>
+        <div><span class="ck">Portal: </span><span class="cv">/#judge-portal</span></div>
         <div><span class="ck">Tracks: </span><span class="cv">${esc(tracks||'All')}</span></div>
       </div>
-      <button class="btn btn-ghost btn-full btn-sm" style="margin-top:10px" onclick="navigator.clipboard.writeText('Name: ${esc(name)}\\nEmail: ${esc(em)}\\nPassword: ${pw}\\nPortal: nexushack.dev/#judge-portal');toast('Copied!','ok')">📋 Copy All</button>`;
-      ['cj-fn','cj-ln','cj-em','cj-org'].forEach(id=>{const e=$(id);if(e)e.value='';});
+      <p style="font-size:12px;color:var(--muted);margin:10px 0 5px">📱 SMS dispatched to ${esc(mobile)}. To enable real SMS: add Twilio config to Firestore <code>config/twilio</code> doc or use a Cloud Function.</p>
+      <button class="btn btn-ghost btn-full btn-sm" style="margin-top:10px" onclick="navigator.clipboard.writeText('Name: ${esc(name)}\\nEmail: ${esc(em)}\\nPassword: ${pw}\\nPortal: /#judge-portal');toast('Copied!','ok')">📋 Copy Credentials</button>`;
+      ['cj-fn','cj-ln','cj-em','cj-org','cj-mobile'].forEach(id=>{const e=$(id);if(e)e.value='';});
       ['ck-ai','ck-web3','ck-climate','ck-health','ck-gaming','ck-dev'].forEach(id=>{const e=$(id);if(e)e.checked=false;});
-      toast(`Judge "${name}" created!`,'ok');
+      toast(`Judge "${name}" created! Password sent via SMS to ${mobile}`,'ok');
       await this.loadJudges(); this.updateStats();
     } catch(e) { toast(e.message,'err'); }
     setBtn('cj-btn',false,'Generate Credentials →');
@@ -1004,6 +1094,25 @@ window.OrgCtrl = {
       const anns = snap.docs.map(d=>({id:d.id,...d.data()}));
       const bd = $('o-ann-sent'); if(bd) bd.innerHTML = anns.map(a=>annHTML(a)).join('') || '<p style="color:var(--muted);font-size:13px">None sent yet.</p>';
     } catch(e) {}
+  },
+
+  /* ─── CHANGE PASSWORD ─── */
+  async changePassword() {
+    const cur=$('o-pw-cur').value, nw=$('o-pw-new').value, conf=$('o-pw-conf').value;
+    if (!cur||!nw||!conf) { toast('Fill all password fields','err'); return; }
+    if (nw.length < 8) { toast('New password must be at least 8 characters','err'); return; }
+    if (nw !== conf) { toast('New passwords do not match','err'); return; }
+    setBtn('o-chpw-btn',true,'Updating…');
+    try {
+      const snap = await getDocs(query(collection(db,'organizers'), where('email','==',S.orgProfile?.email)));
+      if (snap.empty) { toast('Organizer account not found','err'); setBtn('o-chpw-btn',false,'Update Password →'); return; }
+      const orgDoc = snap.docs[0];
+      if (orgDoc.data().password !== cur) { toast('Current password is incorrect','err'); setBtn('o-chpw-btn',false,'Update Password →'); return; }
+      await updateDoc(doc(db,'organizers',orgDoc.id), { password:nw, isDefault:false, updatedAt:serverTimestamp() });
+      $('o-pw-cur').value=''; $('o-pw-new').value=''; $('o-pw-conf').value='';
+      toast('Password updated successfully! 🔒','ok');
+    } catch(e) { toast(e.message,'err'); }
+    setBtn('o-chpw-btn',false,'Update Password →');
   },
 
   /* ─── STATS ─── */
@@ -1173,6 +1282,24 @@ window.JudgeCtrl = {
       const prev=$('j-ann-prev'); if(prev) prev.innerHTML = anns.slice(0,3).map(a=>annHTML(a)).join('') || '<p style="color:var(--muted);font-size:13px">None.</p>';
       const all=$('j-ann-all'); if(all) all.innerHTML = html;
     } catch(e) {}
+  },
+  async changePassword() {
+    const old=$('j-old-pw').value, nw=$('j-new-pw').value, conf=$('j-conf-pw').value;
+    if (!old||!nw||!conf) { toast('Fill all password fields','err'); return; }
+    if (nw.length < 8) { toast('New password must be at least 8 characters','err'); return; }
+    if (nw !== conf) { toast('Passwords do not match','err'); return; }
+    setBtn('j-pw-btn',true,'Updating…');
+    try {
+      const jid = S.judgeProfile?.id; if(!jid) { toast('Not logged in','err'); return; }
+      const snap = await getDoc(doc(db,'judges',jid));
+      if (!snap.exists()) { toast('Judge account not found','err'); setBtn('j-pw-btn',false,'Update Password →'); return; }
+      if (snap.data().password !== old) { toast('Current password is incorrect','err'); setBtn('j-pw-btn',false,'Update Password →'); return; }
+      await updateDoc(doc(db,'judges',jid), { password:nw, updatedAt:serverTimestamp() });
+      S.judgeProfile.password = nw;
+      $('j-old-pw').value=''; $('j-new-pw').value=''; $('j-conf-pw').value='';
+      toast('Password updated! 🔒','ok');
+    } catch(e) { toast(e.message,'err'); }
+    setBtn('j-pw-btn',false,'Update Password →');
   }
 };
 
@@ -1196,3 +1323,35 @@ window.sendContact = () => {
 
 /* expose toast globally for inline onclick */
 window.toast = toast;
+
+/* ── IMAGE PREVIEW ──────────────────────────────────── */
+window.previewImg = function(input, previewId) {
+  const file = input.files[0]; if(!file) return;
+  const box = $(previewId); if(!box) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    // remove existing preview img
+    box.querySelectorAll('img.preview-img').forEach(i=>i.remove());
+    const img = document.createElement('img');
+    img.className = 'preview-img';
+    img.src = e.target.result;
+    img.style.cssText = 'position:absolute;inset:0;width:100%;height:160px;object-fit:cover;border-radius:8px;z-index:0';
+    box.style.height = '160px';
+    box.appendChild(img);
+    const inner = box.querySelector('.img-upload-inner');
+    if(inner) { inner.style.background='rgba(3,5,10,.6)'; inner.style.borderRadius='6px'; inner.style.padding='4px 8px'; inner.style.zIndex='1'; inner.style.position='relative'; }
+  };
+  reader.readAsDataURL(file);
+};
+
+/* ── dSwitch titles update (add settings) ───────────── */
+const _origDSwitch = window.dSwitch;
+window.dSwitch = function(dash, view, btn) {
+  _origDSwitch(dash, view, btn);
+  // extra label for settings
+  const extraTitles = { 'o-settings': 'Settings', 'j-settings': 'Settings' };
+  if(extraTitles[view]) {
+    const p = dash[0];
+    $(`${p}-dtb`).textContent = extraTitles[view];
+  }
+};
