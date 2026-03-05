@@ -16,27 +16,22 @@
   <div style="font-size:12px;color:var(--muted);font-family:'DM Mono',monospace;margin-top:4px">Initialising Firebase…</div>
 </div>
 
-<!-- Cursor + canvas + toasts -->
-<div id="_cur"></div>
-<div id="_ring"></div>
+<div id="_cur"></div><div id="_ring"></div>
 <canvas id="_canvas"></canvas>
 <div id="_toasts"></div>
 
 <!-- ════ NAV ══════════════════════════════════════════ -->
 <nav id="_nav">
   <div class="nav-logo" onclick="G.go('home')">NEXUS HACK</div>
-
   <div class="nav-links">
-    <button class="nlink on"  onclick="G.go('home')">Home</button>
-    <button class="nlink"     onclick="G.go('events')">Events</button>
-    <button class="nlink"     onclick="G.go('schedule')">Schedule</button>
-    <button class="nlink"     onclick="G.go('prizes')">Prizes</button>
-    <button class="nlink"     onclick="G.go('faq')">FAQ</button>
-    <button class="nlink"     onclick="G.go('contact')">Contact</button>
+    <button class="nlink on" onclick="G.go('home')">Home</button>
+    <button class="nlink"    onclick="G.go('events')">Events</button>
+    <button class="nlink"    onclick="G.go('schedule')">Schedule</button>
+    <button class="nlink"    onclick="G.go('prizes')">Prizes</button>
+    <button class="nlink"    onclick="G.go('faq')">FAQ</button>
+    <button class="nlink"    onclick="G.go('contact')">Contact</button>
   </div>
-
   <div class="nav-r">
-    <!-- Countdown -->
     <div class="nav-cd">
       <div class="cd-u"><span class="cd-n" id="cd-d">--</span><span class="cd-l">Days</span></div>
       <span class="cd-sep">:</span>
@@ -46,13 +41,12 @@
       <span class="cd-sep">:</span>
       <div class="cd-u"><span class="cd-n" id="cd-s">--</span><span class="cd-l">Sec</span></div>
     </div>
-    <!-- Auth buttons -->
     <button class="btn btn-ghost btn-sm" id="nav-signin" onclick="openOv('ov-login')">Sign In</button>
     <div id="nav-user-btn" onclick="Dash.openHacker()">
       <div class="nav-av-fb" id="nav-av-fb">H</div>
       <span id="nav-display-name">User</span>
     </div>
-    <button class="btn btn-amber btn-sm" onclick="G.go('register')">Apply Now</button>
+    <button class="btn btn-cyan btn-sm" onclick="G.go('register')">Register Free</button>
     <button class="ham" onclick="G.toggleMob()"><span></span><span></span><span></span></button>
   </div>
 </nav>
@@ -68,7 +62,7 @@
   <button class="mob-lk" onclick="G.go('contact');G.toggleMob()">Contact</button>
   <div style="display:flex;gap:10px;margin-top:16px;flex-wrap:wrap;justify-content:center">
     <button class="btn btn-ghost" onclick="openOv('ov-login');G.toggleMob()">Sign In</button>
-    <button class="btn btn-amber" onclick="G.go('register');G.toggleMob()">Apply</button>
+    <button class="btn btn-cyan"  onclick="G.go('register');G.toggleMob()">Register</button>
   </div>
 </div>
 
@@ -92,7 +86,7 @@
       <div><div class="hs-n">48h</div><div class="hs-l">Build Time</div></div>
     </div>
     <div class="hero-btns">
-      <button class="btn btn-amber" onclick="G.go('register')">Apply Now — Free →</button>
+      <button class="btn btn-amber" onclick="G.go('register')">Register Free →</button>
       <button class="btn btn-cyan"  onclick="G.go('events')">View Events</button>
     </div>
   </div>
@@ -124,7 +118,7 @@
   <div style="text-align:center;padding:64px 36px 36px;background:linear-gradient(180deg,var(--bg2),transparent);border-bottom:1px solid var(--b0)">
     <div class="sec-lbl" style="justify-content:center">All Events</div>
     <h1 class="sec-h">Hackathons</h1>
-    <p style="font-size:14px;color:var(--muted);max-width:460px;margin:0 auto">Browse all hosted hackathons. Click any card to view full details and register.</p>
+    <p style="font-size:14px;color:var(--muted);max-width:460px;margin:0 auto">Browse all hosted hackathons. Click any card to view full details.</p>
   </div>
   <div class="sec" style="padding-top:36px">
     <div style="display:flex;gap:10px;margin-bottom:18px;flex-wrap:wrap">
@@ -187,21 +181,9 @@
   </div>
   <div style="max-width:1020px;margin:0 auto;padding:0 36px 72px">
     <div class="podium-grid">
-      <div class="card" style="padding:24px;text-align:center;border-color:rgba(192,192,192,.18)">
-        <div style="font-size:36px;margin-bottom:8px">🥈</div>
-        <div style="font-family:'Bebas Neue',sans-serif;font-size:16px;color:#c0c0c0">Runner Up</div>
-        <div style="font-family:'Bebas Neue',sans-serif;font-size:40px;color:#c0c0c0">$10,000</div>
-      </div>
-      <div class="card" style="padding:30px;text-align:center;border-color:rgba(255,215,0,.22)">
-        <div style="font-size:48px;margin-bottom:10px">🥇</div>
-        <div style="font-family:'Bebas Neue',sans-serif;font-size:20px;color:#ffd700">Grand Prize</div>
-        <div style="font-family:'Bebas Neue',sans-serif;font-size:54px;color:#ffd700">$20,000</div>
-      </div>
-      <div class="card" style="padding:24px;text-align:center;border-color:rgba(205,127,50,.18)">
-        <div style="font-size:36px;margin-bottom:8px">🥉</div>
-        <div style="font-family:'Bebas Neue',sans-serif;font-size:16px;color:#cd7f32">3rd Place</div>
-        <div style="font-family:'Bebas Neue',sans-serif;font-size:40px;color:#cd7f32">$5,000</div>
-      </div>
+      <div class="card" style="padding:24px;text-align:center;border-color:rgba(192,192,192,.18)"><div style="font-size:36px;margin-bottom:8px">🥈</div><div style="font-family:'Bebas Neue',sans-serif;font-size:16px;color:#c0c0c0">Runner Up</div><div style="font-family:'Bebas Neue',sans-serif;font-size:40px;color:#c0c0c0">$10,000</div></div>
+      <div class="card" style="padding:30px;text-align:center;border-color:rgba(255,215,0,.22)"><div style="font-size:48px;margin-bottom:10px">🥇</div><div style="font-family:'Bebas Neue',sans-serif;font-size:20px;color:#ffd700">Grand Prize</div><div style="font-family:'Bebas Neue',sans-serif;font-size:54px;color:#ffd700">$20,000</div></div>
+      <div class="card" style="padding:24px;text-align:center;border-color:rgba(205,127,50,.18)"><div style="font-size:36px;margin-bottom:8px">🥉</div><div style="font-family:'Bebas Neue',sans-serif;font-size:16px;color:#cd7f32">3rd Place</div><div style="font-family:'Bebas Neue',sans-serif;font-size:40px;color:#cd7f32">$5,000</div></div>
     </div>
     <div class="prize-track-grid">
       <div class="card" style="padding:20px;text-align:center;border-color:rgba(82,196,255,.14)"><div style="font-size:26px;margin-bottom:7px">🤖</div><div style="font-family:'Bebas Neue',sans-serif;font-size:15px;color:var(--cyan)">Best AI Project</div><div style="font-family:'Bebas Neue',sans-serif;font-size:34px;color:var(--cyan)">$8,000</div></div>
@@ -254,9 +236,8 @@
 <div class="page" id="page-register">
   <div class="reg-wrap">
     <div class="reg-card">
-      <div class="reg-title">Apply to NEXUS HACK</div>
+      <div class="reg-title">Join NEXUS HACK</div>
       <div class="reg-sub">Google &amp; GitHub auth supported · Powered by Firebase</div>
-      <!-- Social sign-in -->
       <div style="display:flex;flex-direction:column;gap:9px;margin-bottom:4px">
         <button class="btn btn-google btn-full" onclick="Auth.googleSignIn()">
           <svg width="17" height="17" viewBox="0 0 48 48"><path fill="#FFC107" d="M43.6 20.1H42V20H24v8h11.3C33.7 32.6 29.3 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.1 7.9 3L37.1 9C34 6.2 29.2 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.6-.4-3.9z"/><path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.6 16 19 12 24 12c3.1 0 5.8 1.1 7.9 3L37.1 9C34 6.2 29.2 4 24 4 16.3 4 9.7 8.3 6.3 14.7z"/><path fill="#4CAF50" d="M24 44c5.2 0 9.9-1.9 13.5-5l-6.2-5.3C29.4 35.6 26.8 36 24 36c-5.3 0-9.7-3.3-11.3-8l-6.5 5.1C9.5 39.6 16.3 44 24 44z"/><path fill="#1976D2" d="M43.6 20.1H42V20H24v8h11.3c-.8 2.2-2.2 4.2-4.2 5.7l6.2 5.3C36.9 38.2 44 33 44 24c0-1.3-.1-2.6-.4-3.9z"/></svg>
@@ -268,25 +249,22 @@
         </button>
       </div>
       <div class="or-sep">or register with email</div>
-      <!-- Progress steps -->
       <div class="prog" id="reg-prog">
         <div class="ps on"><div class="ps-dot">1</div><div class="ps-l">Account</div></div>
         <div class="ps"><div class="ps-dot">2</div><div class="ps-l">Profile</div></div>
         <div class="ps"><div class="ps-dot">3</div><div class="ps-l">Track</div></div>
         <div class="ps"><div class="ps-dot">4</div><div class="ps-l">Done</div></div>
       </div>
-      <!-- Step 1 -->
       <div class="rs on" id="rs-1">
         <div class="f2">
           <div class="field"><label class="lbl">First Name *</label><input class="inp" id="r-fn" placeholder="Alex"/></div>
-          <div class="field"><label class="lbl">Last Name *</label><input class="inp" id="r-ln" placeholder="Chen"/></div>
+          <div class="field"><label class="lbl">Last Name</label><input class="inp" id="r-ln" placeholder="Chen"/></div>
         </div>
         <div class="field"><label class="lbl">Email *</label><input class="inp" type="email" id="r-em" placeholder="you@example.com"/></div>
         <div class="field"><label class="lbl">Password *</label><input class="inp" type="password" id="r-pw" placeholder="Min 8 characters"/></div>
         <button class="btn btn-amber btn-full" onclick="Auth.nextReg(1)">Continue →</button>
         <div style="text-align:center;margin-top:11px;font-size:13px;color:var(--muted)">Have an account? <button onclick="openOv('ov-login')" style="background:none;border:none;color:var(--cyan);cursor:pointer;font-family:'Syne',sans-serif;font-size:13px;font-weight:700;padding:0">Sign In</button></div>
       </div>
-      <!-- Step 2 -->
       <div class="rs" id="rs-2">
         <div class="field"><label class="lbl">Role / Title</label><input class="inp" id="r-title" placeholder="e.g. Student, Software Engineer"/></div>
         <div class="field"><label class="lbl">Organization / School</label><input class="inp" id="r-org" placeholder="Company or university"/></div>
@@ -296,7 +274,6 @@
           <button class="btn btn-amber btn-full" onclick="Auth.nextReg(2)">Continue →</button>
         </div>
       </div>
-      <!-- Step 3 -->
       <div class="rs" id="rs-3">
         <div class="field"><label class="lbl">Preferred Track</label>
           <select class="sel" id="r-track">
@@ -305,24 +282,17 @@
             <option>Gaming &amp; XR</option><option>Dev Tools</option><option>Undecided</option>
           </select>
         </div>
-        <div class="field"><label class="lbl">Looking for a team?</label>
-          <div style="display:flex;gap:12px;margin-top:5px">
-            <label style="display:flex;align-items:center;gap:5px;cursor:pointer;color:var(--muted);font-size:13px"><input type="radio" name="lfm" value="yes" checked style="accent-color:var(--cyan)"/> Open to teammates</label>
-            <label style="display:flex;align-items:center;gap:5px;cursor:pointer;color:var(--muted);font-size:13px"><input type="radio" name="lfm" value="no" style="accent-color:var(--cyan)"/> Have a team</label>
-          </div>
-        </div>
         <div class="field"><label class="lbl">Project Idea (optional)</label><textarea class="inp" rows="3" id="r-idea" placeholder="Describe any ideas you want to build…"></textarea></div>
         <div style="display:flex;gap:9px">
           <button class="btn btn-ghost" onclick="Auth.prevReg()" style="width:38%">← Back</button>
           <button class="btn btn-green btn-full" id="reg-final-btn" onclick="Auth.submitReg()">Create Account ✓</button>
         </div>
       </div>
-      <!-- Step 4 success -->
       <div class="rs" id="rs-4">
         <div style="text-align:center;padding:18px 0">
           <div style="font-size:48px;margin-bottom:12px">🚀</div>
           <div style="font-family:'Bebas Neue',sans-serif;font-size:26px;color:var(--green);margin-bottom:8px">You're In!</div>
-          <div style="font-size:13px;color:var(--muted);line-height:1.7;margin-bottom:20px">Account created in Firebase! Open your participant dashboard to get started.</div>
+          <div style="font-size:13px;color:var(--muted);line-height:1.7;margin-bottom:20px">Account created! Open your dashboard to get started.</div>
           <div style="display:flex;gap:9px;justify-content:center;flex-wrap:wrap">
             <button class="btn btn-cyan"  onclick="Dash.openHacker()">Open Dashboard</button>
             <button class="btn btn-ghost" onclick="G.go('home')">Back to Home</button>
@@ -333,7 +303,7 @@
   </div>
 </div>
 
-<!-- ── ORGANIZER PORTAL ── accessed via /#organizer-portal -->
+<!-- ══ ORGANIZER PORTAL ══ /#organizer-portal ══════════ -->
 <div class="page" id="page-organizer-portal">
   <div class="portal-wrap">
     <div class="pg-glow" style="width:450px;height:450px;top:-180px;left:-130px;background:radial-gradient(circle,rgba(255,184,48,.12) 0,transparent 70%)"></div>
@@ -342,23 +312,22 @@
       <div class="p-icon">⎔</div>
       <div class="p-title" style="color:var(--amber)">Organizer Portal</div>
       <div style="display:flex;justify-content:center;margin-bottom:16px"><span class="badge b-orange">RESTRICTED ACCESS</span></div>
-      <div class="p-sub">Authorized organizers only. All access attempts are logged.</div>
+      <div class="p-sub">Authorized organizers only. Credentials stored in Firestore.</div>
       <div class="field"><label class="lbl">Organizer Email</label><input class="inp" type="email" id="og-em" placeholder="organizer@nexushack.dev" onkeydown="if(event.key==='Enter')Auth.orgLogin()"/></div>
       <div class="field"><label class="lbl">Password</label><input class="inp" type="password" id="og-pw" placeholder="••••••••" onkeydown="if(event.key==='Enter')Auth.orgLogin()"/></div>
-      <div class="field"><label class="lbl">6-Digit Access Code</label><input class="inp" id="og-code" placeholder="••••••" maxlength="6" onkeydown="if(event.key==='Enter')Auth.orgLogin()"/></div>
       <button class="btn btn-amber btn-full" id="og-btn" onclick="Auth.orgLogin()">Access Organizer Panel →</button>
-      <div class="access-info">
-        Demo credentials:<br>
-        Email: <span style="color:var(--amber)">organizer@nexushack.dev</span>&nbsp;&nbsp;
-        Password: <span style="color:var(--amber)">nexus2025</span>&nbsp;&nbsp;
-        Code: <span style="color:var(--amber)">482910</span><br>
-        <span style="cursor:pointer;text-decoration:underline" onclick="G.go('home')">← Back to site</span>
+      <div style="display:flex;justify-content:space-between;margin-top:12px;flex-wrap:wrap;gap:8px">
+        <button onclick="Auth.orgForgotPass()" style="background:none;border:none;color:var(--cyan);cursor:pointer;font-size:12px;font-family:'Syne',sans-serif;padding:0">Forgot password?</button>
+        <button onclick="G.go('home')" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:12px;font-family:'Syne',sans-serif;padding:0">← Back to site</button>
+      </div>
+      <div style="margin-top:14px;padding:10px;background:rgba(255,184,48,.05);border:1px solid rgba(255,184,48,.12);border-radius:8px;font-size:11px;color:var(--muted);line-height:1.6">
+        <strong style="color:var(--amber)">First time?</strong> Run <code style="color:var(--cyan)">setupOrganizer()</code> in browser console to create the default organizer account. Then change the password in Settings.
       </div>
     </div>
   </div>
 </div>
 
-<!-- ── JUDGE PORTAL ── accessed via /#judge-portal -->
+<!-- ══ JUDGE PORTAL ══ /#judge-portal ════════════════ -->
 <div class="page" id="page-judge-portal">
   <div class="portal-wrap">
     <div class="pg-glow" style="width:450px;height:450px;top:-180px;left:-130px;background:radial-gradient(circle,rgba(168,85,247,.13) 0,transparent 70%)"></div>
@@ -367,14 +336,16 @@
       <div class="p-icon">◎</div>
       <div class="p-title" style="color:var(--purple)">Judge Portal</div>
       <div style="display:flex;justify-content:center;margin-bottom:16px"><span class="badge b-purple">JUDGES ONLY</span></div>
-      <div class="p-sub">Sign in with credentials provided by the hackathon organizer.</div>
+      <div class="p-sub">Sign in with credentials sent to your phone by the organizer.</div>
       <div class="field"><label class="lbl">Judge Email</label><input class="inp" type="email" id="jg-em" placeholder="your@email.com" onkeydown="if(event.key==='Enter')Auth.judgeLogin()"/></div>
-      <div class="field"><label class="lbl">Password</label><input class="inp" type="password" id="jg-pw" placeholder="Provided by organizer" onkeydown="if(event.key==='Enter')Auth.judgeLogin()"/></div>
+      <div class="field"><label class="lbl">Password</label><input class="inp" type="password" id="jg-pw" placeholder="Auto-generated by organizer" onkeydown="if(event.key==='Enter')Auth.judgeLogin()"/></div>
       <button class="btn btn-purple btn-full" id="jg-btn" onclick="Auth.judgeLogin()">Access Judge Panel →</button>
-      <div class="access-info">
-        Credentials issued by organizer only.<br>
-        Contact: <span style="color:var(--purple)">organizer@nexushack.dev</span><br>
-        <span style="cursor:pointer;text-decoration:underline" onclick="G.go('home')">← Back to site</span>
+      <div style="display:flex;justify-content:space-between;margin-top:12px;flex-wrap:wrap;gap:8px">
+        <button onclick="Auth.judgeForgotPass()" style="background:none;border:none;color:var(--cyan);cursor:pointer;font-size:12px;font-family:'Syne',sans-serif;padding:0">Forgot password?</button>
+        <button onclick="G.go('home')" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:12px;font-family:'Syne',sans-serif;padding:0">← Back to site</button>
+      </div>
+      <div style="margin-top:14px;padding:10px;background:rgba(168,85,247,.05);border:1px solid rgba(168,85,247,.12);border-radius:8px;font-size:11px;color:var(--muted);line-height:1.6">
+        Password is auto-generated when organizer creates your account and sent via SMS. Contact the organizer if you need access.
       </div>
     </div>
   </div>
@@ -403,7 +374,10 @@
       <div class="field"><label class="lbl">Email</label><input class="inp" type="email" id="li-em" placeholder="you@example.com" onkeydown="if(event.key==='Enter')Auth.emailLogin()"/></div>
       <div class="field"><label class="lbl">Password</label><input class="inp" type="password" id="li-pw" placeholder="••••••••" onkeydown="if(event.key==='Enter')Auth.emailLogin()"/></div>
       <button class="btn btn-cyan btn-full" id="li-btn" onclick="Auth.emailLogin()">Sign In →</button>
-      <div style="text-align:center;margin-top:11px;font-size:13px;color:var(--muted)">No account? <button onclick="closeOv('ov-login');G.go('register')" style="background:none;border:none;color:var(--cyan);cursor:pointer;font-family:'Syne',sans-serif;font-size:13px;font-weight:700;padding:0">Register free</button></div>
+      <div style="display:flex;justify-content:space-between;margin-top:11px;font-size:13px;flex-wrap:wrap;gap:6px">
+        <button onclick="Auth.forgotPassword()" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:12px;font-family:'Syne',sans-serif;padding:0">Forgot password?</button>
+        <span style="color:var(--muted)">No account? <button onclick="closeOv('ov-login');G.go('register')" style="background:none;border:none;color:var(--cyan);cursor:pointer;font-family:'Syne',sans-serif;font-size:13px;font-weight:700;padding:0">Register free</button></span>
+      </div>
     </div>
   </div>
 </div>
@@ -428,9 +402,17 @@
 
 <!-- Host Hackathon -->
 <div class="ov" id="ov-host" onclick="ovClick(event,'ov-host')">
-  <div class="modal m-wide">
+  <div class="modal m-xl">
     <div class="mhd"><div class="mtitle" style="color:var(--amber)">Host Hackathon</div><button class="mx" onclick="closeOv('ov-host')">×</button></div>
     <div class="mbd">
+      <!-- Banner image -->
+      <div class="field">
+        <label class="lbl">Event Banner Image</label>
+        <div class="img-upload-box" id="hk-img-preview" onclick="document.getElementById('hk-img').click()">
+          <div class="img-upload-inner"><span style="font-size:24px">🖼️</span><div style="font-size:13px;color:var(--muted)">Click to upload image</div><div style="font-size:11px;color:var(--faint)">JPG, PNG, WebP · max 5MB</div></div>
+        </div>
+        <input type="file" id="hk-img" accept="image/*" style="display:none" onchange="previewImg(this,'hk-img-preview')"/>
+      </div>
       <div class="field"><label class="lbl">Hackathon Name *</label><input class="inp" id="hk-name" placeholder="e.g. NEXUS HACK 2026"/></div>
       <div class="field"><label class="lbl">Tagline</label><input class="inp" id="hk-tag" placeholder="e.g. Build the future in 48 hours"/></div>
       <div class="f2">
@@ -442,11 +424,21 @@
         <div class="field"><label class="lbl">Max Team Size</label><input class="inp" type="number" id="hk-team" placeholder="4"/></div>
       </div>
       <div class="f2">
-        <div class="field"><label class="lbl">Prize Pool ($)</label><input class="inp" type="number" id="hk-prize" placeholder="50000"/></div>
+        <div class="field"><label class="lbl">Total Prize Pool ($)</label><input class="inp" type="number" id="hk-prize" placeholder="50000"/></div>
         <div class="field"><label class="lbl">Venue / Location</label><input class="inp" id="hk-venue" placeholder="San Francisco, CA"/></div>
       </div>
       <div class="field"><label class="lbl">Description *</label><textarea class="inp" id="hk-desc" rows="3" placeholder="Theme, goals, what to build…"></textarea></div>
-      <div class="field"><label class="lbl">Tracks (comma-separated)</label><input class="inp" id="hk-tracks" placeholder="AI &amp; ML, Web3, Climate Tech, HealthTech…"/></div>
+      <div class="field"><label class="lbl">Tracks (comma-separated)</label><input class="inp" id="hk-tracks" placeholder="AI &amp; ML, Web3, Climate Tech…"/></div>
+      <!-- Custom prizes -->
+      <div class="field">
+        <label class="lbl">Prize Breakdown <button class="btn btn-ghost btn-xs" style="margin-left:8px" onclick="addPrizeRow('hk-prizes-list')">+ Add Prize</button></label>
+        <div id="hk-prizes-list" style="margin-top:6px"></div>
+      </div>
+      <!-- Rules -->
+      <div class="field">
+        <label class="lbl">Rules &amp; Guidelines</label>
+        <textarea class="inp" id="hk-rules" rows="4" placeholder="• Teams must be 1-4 members&#10;• All code must be written during the event&#10;• Projects must be submitted before deadline&#10;• Judges' decisions are final"></textarea>
+      </div>
       <div class="field"><label class="lbl">Initial Status</label>
         <select class="sel" id="hk-status">
           <option value="upcoming">Upcoming</option>
@@ -461,10 +453,18 @@
 
 <!-- Edit Event -->
 <div class="ov" id="ov-edit-ev" onclick="ovClick(event,'ov-edit-ev')">
-  <div class="modal m-wide">
+  <div class="modal m-xl">
     <div class="mhd"><div class="mtitle" style="color:var(--cyan)">Edit Event</div><button class="mx" onclick="closeOv('ov-edit-ev')">×</button></div>
     <div class="mbd">
       <input type="hidden" id="eh-id"/>
+      <!-- Banner image -->
+      <div class="field">
+        <label class="lbl">Event Banner Image</label>
+        <div class="img-upload-box" id="eh-img-preview" onclick="document.getElementById('eh-img').click()">
+          <div class="img-upload-inner"><span style="font-size:24px">🖼️</span><div style="font-size:13px;color:var(--muted)">Click to change image</div></div>
+        </div>
+        <input type="file" id="eh-img" accept="image/*" style="display:none" onchange="previewImg(this,'eh-img-preview')"/>
+      </div>
       <div class="field"><label class="lbl">Name *</label><input class="inp" id="eh-name"/></div>
       <div class="field"><label class="lbl">Tagline</label><input class="inp" id="eh-tag"/></div>
       <div class="f2">
@@ -478,6 +478,16 @@
       <div class="field"><label class="lbl">Venue</label><input class="inp" id="eh-venue"/></div>
       <div class="field"><label class="lbl">Description</label><textarea class="inp" id="eh-desc" rows="3"></textarea></div>
       <div class="field"><label class="lbl">Tracks</label><input class="inp" id="eh-tracks" placeholder="AI &amp; ML, Web3…"/></div>
+      <!-- Custom prizes -->
+      <div class="field">
+        <label class="lbl">Prize Breakdown <button class="btn btn-ghost btn-xs" style="margin-left:8px" onclick="addPrizeRow('eh-prizes-list')">+ Add Prize</button></label>
+        <div id="eh-prizes-list" style="margin-top:6px"></div>
+      </div>
+      <!-- Rules -->
+      <div class="field">
+        <label class="lbl">Rules &amp; Guidelines</label>
+        <textarea class="inp" id="eh-rules" rows="4" placeholder="Enter hackathon rules…"></textarea>
+      </div>
       <div class="field"><label class="lbl">Status</label>
         <select class="sel" id="eh-status">
           <option value="upcoming">Upcoming</option>
@@ -495,12 +505,15 @@
   <div class="modal m-wide">
     <div class="mhd"><div class="mtitle" style="color:var(--purple)">Create Judge Account</div><button class="mx" onclick="closeOv('ov-create-judge')">×</button></div>
     <div class="mbd">
-      <p style="font-size:13px;color:var(--muted);margin-bottom:16px;line-height:1.6">Creates a judge credential stored in Firestore. Share the generated password with the judge — they log in at <span style="color:var(--cyan);font-family:'DM Mono',monospace">/#judge-portal</span></p>
+      <div style="padding:10px;background:rgba(168,85,247,.07);border:1px solid rgba(168,85,247,.18);border-radius:8px;font-size:12px;color:var(--muted);line-height:1.6;margin-bottom:14px">
+        🔐 A strong password is <strong style="color:var(--green)">auto-generated</strong> and sent via <strong style="color:var(--cyan)">SMS</strong> to the judge's mobile number. They log in at <span style="color:var(--cyan);font-family:'DM Mono',monospace">/#judge-portal</span>
+      </div>
       <div class="f2">
         <div class="field"><label class="lbl">First Name *</label><input class="inp" id="cj-fn" placeholder="Alex"/></div>
         <div class="field"><label class="lbl">Last Name</label><input class="inp" id="cj-ln" placeholder="Kumar"/></div>
       </div>
       <div class="field"><label class="lbl">Email *</label><input class="inp" type="email" id="cj-em" placeholder="judge@example.com"/></div>
+      <div class="field"><label class="lbl">📱 Mobile Number (for SMS)</label><input class="inp" type="tel" id="cj-phone" placeholder="+91 98765 43210"/></div>
       <div class="field"><label class="lbl">Organization</label><input class="inp" id="cj-org" placeholder="Company or university"/></div>
       <div class="field"><label class="lbl">Assigned Tracks</label>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:5px;margin-top:4px">
@@ -512,7 +525,7 @@
           <label style="display:flex;align-items:center;gap:5px;font-size:13px;color:var(--muted);cursor:pointer"><input type="checkbox" id="ck-dev"     style="accent-color:var(--cyan)"/> Dev Tools</label>
         </div>
       </div>
-      <button class="btn btn-purple btn-full" id="cj-btn" onclick="OrgCtrl.createJudge()" style="margin-top:8px">Generate Credentials →</button>
+      <button class="btn btn-purple btn-full" id="cj-btn" onclick="OrgCtrl.createJudge()" style="margin-top:8px">Generate Password &amp; Send SMS →</button>
       <div id="cj-result" style="display:none;margin-top:14px"></div>
     </div>
   </div>
@@ -592,7 +605,6 @@
         <div class="dtb-r"><div class="dtb-clk" id="h-clk"></div><button class="btn btn-amber btn-sm" onclick="openOv('ov-submit')">+ Submit</button></div>
       </div>
       <div class="dc">
-        <!-- Overview -->
         <div class="dv on" id="dv-h-h-overview">
           <div class="srow">
             <div class="sc"><div class="sc-l">Projects</div><div class="sc-v" style="color:var(--amber)" id="hs-projs">—</div><div class="sc-s">submitted</div></div>
@@ -605,11 +617,9 @@
             <div class="panel"><div class="phd"><div class="ptitle">📢 Latest Announcements</div></div><div class="pbd" id="h-ann-prev"></div></div>
           </div>
         </div>
-        <!-- Leaderboard -->
         <div class="dv" id="dv-h-h-lb">
           <div class="panel"><div class="phd"><div class="ptitle">Leaderboard</div><button class="btn btn-ghost btn-xs" onclick="HackerCtrl.loadProjects()">↻ Refresh</button></div><div style="padding:0"><table><thead><tr><th>#</th><th>Team</th><th>Track</th><th>Score</th><th>Bar</th></tr></thead><tbody id="h-lb-tbody"></tbody></table></div></div>
         </div>
-        <!-- Projects -->
         <div class="dv" id="dv-h-h-projs">
           <div style="display:flex;gap:9px;margin-bottom:14px;flex-wrap:wrap">
             <input class="inp" placeholder="Search projects…" style="max-width:220px;flex:1" oninput="HackerCtrl.filterProjs(this.value)"/>
@@ -617,22 +627,18 @@
           </div>
           <div class="gauto" id="h-projs-grid"></div>
         </div>
-        <!-- Announcements -->
         <div class="dv" id="dv-h-h-ann">
           <div class="panel"><div class="phd"><div class="ptitle">All Announcements</div></div><div class="pbd" id="h-ann-all"></div></div>
         </div>
-        <!-- Team -->
         <div class="dv" id="dv-h-h-team">
           <div class="g2">
             <div class="panel"><div class="phd"><div class="ptitle">My Team</div><button class="btn btn-cyan btn-xs" onclick="openOv('ov-team')">Manage</button></div><div class="pbd" id="h-team-bd"><div class="empty"><div class="empty-ic">⬡</div><div class="empty-t">No team yet</div><button class="btn btn-cyan btn-sm" onclick="openOv('ov-team')">Create or Join</button></div></div></div>
             <div class="panel"><div class="phd"><div class="ptitle">Find Teammates</div></div><div class="pbd" id="h-teammates"></div></div>
           </div>
         </div>
-        <!-- Submit -->
         <div class="dv" id="dv-h-h-submit">
-          <div class="panel" style="max-width:500px"><div class="phd"><div class="ptitle">Submit Your Project</div></div><div class="pbd"><p style="font-size:13px;color:var(--muted);margin-bottom:14px">Submit before the deadline. One submission per team. Projects are saved to Firestore in real-time.</p><button class="btn btn-green btn-full" onclick="openOv('ov-submit')">Open Submission Form →</button></div></div>
+          <div class="panel" style="max-width:500px"><div class="phd"><div class="ptitle">Submit Your Project</div></div><div class="pbd"><p style="font-size:13px;color:var(--muted);margin-bottom:14px">Submit before the deadline. One submission per team.</p><button class="btn btn-green btn-full" onclick="openOv('ov-submit')">Open Submission Form →</button></div></div>
         </div>
-        <!-- My Submission -->
         <div class="dv" id="dv-h-h-myproj">
           <div class="panel"><div class="phd"><div class="ptitle">My Submission</div><button class="btn btn-ghost btn-xs" onclick="HackerCtrl.loadMyProject()">↻ Refresh</button></div><div class="pbd" id="h-myproj-bd"><div class="empty"><div class="empty-ic">✦</div><div class="empty-t">No submission yet</div><button class="btn btn-green btn-sm" onclick="openOv('ov-submit')">Submit Now</button></div></div></div>
         </div>
@@ -661,6 +667,8 @@
         <button class="da"    onclick="dSwitch('organizer','o-lb',this)"><span class="da-ic">◆</span><span>Leaderboard</span></button>
         <div class="dsb-sec">Broadcast</div>
         <button class="da"    onclick="dSwitch('organizer','o-ann',this)"><span class="da-ic">📢</span><span>Announcements</span></button>
+        <div class="dsb-sec">Account</div>
+        <button class="da"    onclick="dSwitch('organizer','o-settings',this)"><span class="da-ic">⚙</span><span>Settings</span></button>
       </nav>
       <div class="dsb-ft">
         <button class="da" onclick="Dash.exit('organizer')"><span class="da-ic">←</span><span>Exit</span></button>
@@ -707,7 +715,7 @@
           </div>
           <div class="panel">
             <div class="phd"><div class="ptitle">All Participants</div><span class="badge b-cyan" id="o-parts-count">0</span></div>
-            <div style="padding:0"><table><thead><tr><th>Name</th><th>Email</th><th>Auth Provider</th><th>Track</th><th>Team</th><th>Submitted</th><th>Joined</th></tr></thead><tbody id="o-parts-tbody"></tbody></table></div>
+            <div style="padding:0"><table><thead><tr><th>Name</th><th>Email</th><th>Auth</th><th>Track</th><th>Team</th><th>Submitted</th><th>Joined</th></tr></thead><tbody id="o-parts-tbody"></tbody></table></div>
           </div>
         </div>
         <!-- Projects -->
@@ -721,7 +729,7 @@
         <!-- Judge Accounts -->
         <div class="dv" id="dv-o-o-judges">
           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:13px;flex-wrap:wrap;gap:9px">
-            <span style="font-size:13px;color:var(--muted)">Manage judge credentials stored in Firestore</span>
+            <span style="font-size:13px;color:var(--muted)">Passwords are auto-generated and sent via SMS</span>
             <button class="btn btn-purple btn-sm" onclick="openOv('ov-create-judge')">+ Create Judge</button>
           </div>
           <div class="panel"><div class="phd"><div class="ptitle">Judge Accounts</div><span class="badge b-purple" id="o-judges-count">0</span></div><div class="pbd" id="o-judges-bd"><div class="empty"><div class="empty-ic">◎</div><div class="empty-t">No judges yet.</div><button class="btn btn-purple btn-sm" onclick="openOv('ov-create-judge')">Add First Judge</button></div></div></div>
@@ -748,6 +756,35 @@
             <div class="panel"><div class="phd"><div class="ptitle">Sent</div></div><div class="pbd" id="o-ann-sent"></div></div>
           </div>
         </div>
+        <!-- Settings / Change Password -->
+        <div class="dv" id="dv-o-o-settings">
+          <div class="g2" style="align-items:start">
+            <div class="panel">
+              <div class="phd"><div class="ptitle">⚙ Change Password</div></div>
+              <div class="pbd">
+                <p style="font-size:13px;color:var(--muted);margin-bottom:16px;line-height:1.6">Update your organizer account password. Must be at least 8 characters.</p>
+                <div class="field"><label class="lbl">Current Password</label><input class="inp" type="password" id="org-old-pw" placeholder="Current password"/></div>
+                <div class="field"><label class="lbl">New Password</label><input class="inp" type="password" id="org-new-pw" placeholder="New password (min 8 chars)"/></div>
+                <div class="field"><label class="lbl">Confirm New Password</label><input class="inp" type="password" id="org-conf-pw" placeholder="Repeat new password"/></div>
+                <button class="btn btn-amber btn-full" id="org-pw-btn" onclick="OrgCtrl.changeOrgPassword()">Update Password →</button>
+              </div>
+            </div>
+            <div class="panel">
+              <div class="phd"><div class="ptitle">ℹ Account Info</div></div>
+              <div class="pbd">
+                <div style="font-size:13px;color:var(--muted);line-height:1.8">
+                  <div style="margin-bottom:8px"><span style="color:var(--faint)">Role:</span> <span class="badge b-orange">Organizer</span></div>
+                  <div style="margin-bottom:8px"><span style="color:var(--faint)">Credentials:</span> Stored in Firestore <code style="color:var(--cyan);font-size:11px">organizers</code> collection</div>
+                  <div style="margin-bottom:8px"><span style="color:var(--faint)">SMS for Judges:</span> Wire <code style="color:var(--cyan);font-size:11px">sendJudgeSMS()</code> to Twilio API in nexus-hack.js</div>
+                  <div style="margin-bottom:8px"><span style="color:var(--faint)">Storage:</span> Firebase Storage for event images</div>
+                </div>
+                <div style="margin-top:16px;padding:10px;background:rgba(255,184,48,.05);border:1px solid rgba(255,184,48,.12);border-radius:8px;font-size:11px;color:var(--muted)">
+                  💡 Default password is set when <code>setupOrganizer()</code> is called. Change it immediately via the form on the left.
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     </main>
   </div>
@@ -768,6 +805,8 @@
         <button class="da"    onclick="dSwitch('judge','j-myscores',this)"><span class="da-ic">★</span><span>My Scores</span></button>
         <button class="da"    onclick="dSwitch('judge','j-lb',this)"><span class="da-ic">◆</span><span>Leaderboard</span></button>
         <button class="da"    onclick="dSwitch('judge','j-ann',this)"><span class="da-ic">📢</span><span>Announcements</span></button>
+        <div class="dsb-sec">Account</div>
+        <button class="da"    onclick="dSwitch('judge','j-settings',this)"><span class="da-ic">⚙</span><span>Settings</span></button>
       </nav>
       <div class="dsb-ft">
         <button class="da" onclick="Dash.exit('judge')"><span class="da-ic">←</span><span>Exit</span></button>
@@ -815,12 +854,37 @@
         <div class="dv" id="dv-j-j-ann">
           <div class="panel"><div class="phd"><div class="ptitle">All Announcements</div></div><div class="pbd" id="j-ann-all"></div></div>
         </div>
+        <!-- Settings / Change Password -->
+        <div class="dv" id="dv-j-j-settings">
+          <div class="g2" style="align-items:start">
+            <div class="panel">
+              <div class="phd"><div class="ptitle">⚙ Change Password</div></div>
+              <div class="pbd">
+                <p style="font-size:13px;color:var(--muted);margin-bottom:16px;line-height:1.6">Change your auto-generated password to something you'll remember. Must be at least 8 characters.</p>
+                <div class="field"><label class="lbl">Current Password</label><input class="inp" type="password" id="j-old-pw" placeholder="Your current password"/></div>
+                <div class="field"><label class="lbl">New Password</label><input class="inp" type="password" id="j-new-pw" placeholder="New password (min 8 chars)"/></div>
+                <div class="field"><label class="lbl">Confirm New Password</label><input class="inp" type="password" id="j-conf-pw" placeholder="Repeat new password"/></div>
+                <button class="btn btn-purple btn-full" id="j-pw-btn" onclick="JudgeCtrl.changePassword()">Update Password →</button>
+              </div>
+            </div>
+            <div class="panel">
+              <div class="phd"><div class="ptitle">ℹ Judge Info</div></div>
+              <div class="pbd" id="j-info-bd">
+                <div style="font-size:13px;color:var(--muted);line-height:1.8">
+                  <div style="margin-bottom:8px"><span style="color:var(--faint)">Role:</span> <span class="badge b-purple">Judge</span></div>
+                  <div style="margin-bottom:8px"><span style="color:var(--faint)">Login:</span> Via /#judge-portal</div>
+                  <div style="margin-bottom:8px"><span style="color:var(--faint)">Password:</span> Auto-generated by organizer &amp; sent via SMS</div>
+                  <div style="margin-bottom:8px"><span style="color:var(--faint)">Tip:</span> Change your password after first login</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     </main>
   </div>
 </div>
 
-<!-- ════ JS ════════════════════════════════════════════ -->
 <script type="module" src="nexus-hack.js"></script>
 </body>
 </html>
